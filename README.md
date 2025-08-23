@@ -1,1 +1,1 @@
-# bmrcl_flutter
+# Mobile application for BMRCL SR
