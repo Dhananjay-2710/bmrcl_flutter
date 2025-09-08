@@ -2,6 +2,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../auth/providers/auth_provider.dart';
+import '../../tasktype/models/task_type.dart';
+import '../../tasktype/providers/task_type_provider.dart';
 import '../../users/providers/users_provider.dart';
 import '../../devices/providers/devices_provider.dart';
 import '../providers/tasks_provider.dart';
@@ -24,13 +26,9 @@ class _AddTaskFormState extends State<AddTaskForm> {
 
   int? _selectedUserId;
   int? _selectedDeviceId;
+  TaskType? _selectedTaskType;
 
   bool _loadingLists = false;
-
-  void _goToTasksTab() {
-    widget.tabController.animateTo(0);
-    Navigator.pop(context);
-  }
 
   @override
   void initState() {
@@ -45,13 +43,14 @@ class _AddTaskFormState extends State<AddTaskForm> {
 
     final usersProv = context.read<UsersProvider>();
     final devicesProv = context.read<DevicesProvider>();
-
+    final taskTypeProv = context.read<TaskTypeProvider>();
     // Only fetch if empty to prevent redundant calls
-    if (usersProv.items.isEmpty || devicesProv.items.isEmpty) {
+    if (usersProv.items.isEmpty || devicesProv.devices.isEmpty || taskTypeProv.allTaskType.isEmpty) {
       setState(() => _loadingLists = true);
       await Future.wait([
         if (usersProv.items.isEmpty) usersProv.load(token),
-        if (devicesProv.items.isEmpty) devicesProv.load(token),
+        if (devicesProv.devices.isEmpty) devicesProv.load(token),
+        if (taskTypeProv.allTaskType.isEmpty) taskTypeProv.loadTaskType(token),
       ]);
       setState(() => _loadingLists = false);
     }
@@ -92,8 +91,8 @@ class _AddTaskFormState extends State<AddTaskForm> {
     final tasksProv = context.read<TasksProvider>();
 
     final body = {
-      'title': _titleCtrl.text.trim(),
-      'description': _descCtrl.text.trim(),
+      'title': _selectedTaskType?.name ?? '',
+      'description': _selectedTaskType?.description ?? '',
       'assign_user_id': _selectedUserId,
       'priority': _priority,
       'due_datetime': _formatDateTime(_dueDateTime!),
@@ -132,16 +131,10 @@ class _AddTaskFormState extends State<AddTaskForm> {
   Widget build(BuildContext context) {
     final usersProv = context.watch<UsersProvider>();
     final devicesProv = context.watch<DevicesProvider>();
+    final taskTypeProv = context.watch<TaskTypeProvider>();
     final creating = context.watch<TasksProvider>().creating;
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Assign Task'),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: _goToTasksTab, // will switch to Tasks tab and close
-        ),
-      ),
       body: Padding(
         padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
         child: SingleChildScrollView(
@@ -152,17 +145,22 @@ class _AddTaskFormState extends State<AddTaskForm> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  TextFormField(
-                    controller: _titleCtrl,
-                    decoration: const InputDecoration(labelText: 'Title'),
-                    validator: (v) => (v == null || v.trim().isEmpty) ? 'Enter title' : null,
+                  _loadingLists
+                      ? const SizedBox.shrink()
+                      : DropdownButtonFormField<TaskType>(
+                    value: _selectedTaskType,
+                    decoration: const InputDecoration(labelText: 'Task Type'),
+                    items: taskTypeProv.allTaskType.map((d) {
+                      return DropdownMenuItem<TaskType>(
+                        value: d,
+                        child: Text(d.name),
+                      );
+                    }).toList(),
+                    onChanged: (v) => setState(() => _selectedTaskType = v),
+                    validator: (v) => v == null ? 'Please select a task type' : null,
                   ),
+
                   const SizedBox(height: 8),
-                  TextFormField(
-                    controller: _descCtrl,
-                    decoration: const InputDecoration(labelText: 'Description'),
-                    maxLines: 2,
-                  ),
                   const SizedBox(height: 8),
                   // USERS dropdown
                   _loadingLists ? const Padding(
@@ -189,7 +187,7 @@ class _AddTaskFormState extends State<AddTaskForm> {
                       : DropdownButtonFormField<int>(
                     value: _selectedDeviceId,
                     decoration: const InputDecoration(labelText: 'Device'),
-                    items: devicesProv.items.map((d) {
+                    items: devicesProv.devices.map((d) {
                       return DropdownMenuItem<int>(
                         value: d.id,
                         child: Text('${d.serialNumber} (${d.type ?? 'Device'})'),

@@ -5,6 +5,8 @@ class AssignShift {
   final int stationId;
   final int gateId;
   final DateTime assignedDate;
+  final DateTime assignedFromDate;
+  final DateTime assignedToDate;
   final int? isCompleted; // 0/1
   final bool? isActive;
 
@@ -26,6 +28,8 @@ class AssignShift {
     required this.stationId,
     required this.gateId,
     required this.assignedDate,
+    required this.assignedFromDate,
+    required this.assignedToDate,
     this.isCompleted,
     this.isActive,
     this.assignedByUserName,
@@ -47,6 +51,8 @@ class AssignShift {
       stationId: j['station_id'] as int,
       gateId: j['gate_id'] as int,
       assignedDate: _parseDate(j['assigned_date']),
+      assignedFromDate: _parseDate(j['assigned_date']),
+      assignedToDate: _parseDate(j['assigned_date']),
       isCompleted: j['is_completed'] is int ? j['is_completed'] as int : null,
       isActive: j['is_active'] as bool?,
       assignedByUserName: j['assigned_by_user_name'] as String?,
@@ -131,6 +137,41 @@ class AssignShiftInput {
   Map<String, dynamic> toJson() => {
     // API expects "YYYY/MM/DD"
     'assigned_date': _fmt(assignedDate),
+    'user_id': userId,
+    'shift_id': shiftId,
+    'station_id': stationId,
+    'gate_id': gateId,
+  };
+
+  String _fmt(DateTime d) {
+    final y = d.year.toString().padLeft(4, '0');
+    final m = d.month.toString().padLeft(2, '0');
+    final day = d.day.toString().padLeft(2, '0');
+    return '$y/$m/$day';
+  }
+}
+
+class AssignBulkShiftInput {
+  final DateTime assignedFromDate;
+  final DateTime assignedToDate;
+  final int userId;
+  final int shiftId;
+  final int stationId;
+  final int gateId;
+
+  AssignBulkShiftInput({
+    required this.assignedFromDate,
+    required this.assignedToDate,
+    required this.userId,
+    required this.shiftId,
+    required this.stationId,
+    required this.gateId,
+  });
+
+  Map<String, dynamic> toJson() => {
+    // API expects "YYYY/MM/DD"
+    'assigned_from_date': _fmt(assignedFromDate),
+    'assigned_to_date': _fmt(assignedToDate),
     'user_id': userId,
     'shift_id': shiftId,
     'station_id': stationId,

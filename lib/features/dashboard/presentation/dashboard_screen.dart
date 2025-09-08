@@ -9,6 +9,8 @@ import '../../faqs/presentation/faqs_tab.dart';
 import '../../notes/presentation/notes_tab.dart';
 import '../../shifts/presentation/shifts_tab.dart';
 import '../../tasks/presentation/tasks_tab.dart';
+import 'dart:ui';
+import 'package:flutter/material.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -58,29 +60,52 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Only rebuild when these specific pieces change
     final auth = context.watch<AuthProvider>();
     final user = auth.user;
 
-    final name = (user?.name.isNotEmpty ?? false) ? user!.name : 'User';
+    final name = (user?.name?.isNotEmpty ?? false) ? user!.name : 'User';
     final role = (user?.role?.isNotEmpty ?? false) ? user!.role : 'Role';
     final profileUrl =
     (user?.profileImageUrl?.isNotEmpty ?? false) ? user!.profileImageUrl : null;
 
     return Scaffold(
+      extendBody: true, // allows content to show behind the nav bar
+      backgroundColor: Colors.grey.shade50,
+
       appBar: GreetingAppBar(
         greetingText: auth.greeting(),
         userName: name,
         roleName: role,
         profileUrl: profileUrl,
       ),
+
       body: SafeArea(
-        top: false, // app bar already provides top inset
-        child: IndexedStack(index: _index, children: _pages),
+        top: false,
+        child: AnimatedSwitcher(
+          duration: const Duration(milliseconds: 300),
+          child: IndexedStack(
+            key: ValueKey(_index),
+            index: _index,
+            children: _pages,
+          ),
+        ),
       ),
-      bottomNavigationBar: _GradientBottomBar(
-        index: _index,
-        onTap: _onTabSelected,
+
+      bottomNavigationBar: ClipRRect(
+        borderRadius: const BorderRadius.only(
+          topLeft: Radius.circular(20),
+          topRight: Radius.circular(20),
+        ),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15), // frosted glass effect
+          child: Container(
+            color: Colors.white.withOpacity(0.65), // semi-transparent background
+            child: _GradientBottomBar(
+              index: _index,
+              onTap: _onTabSelected,
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -88,6 +113,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
 class _GradientBottomBar extends StatelessWidget {
   const _GradientBottomBar({
+    super.key,
     required this.index,
     required this.onTap,
   });
@@ -97,74 +123,88 @@ class _GradientBottomBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Wrapper with gradient & rounded top corners
-    return ClipRRect(
-      borderRadius: const BorderRadius.only(
-        topLeft: Radius.circular(16),
-        topRight: Radius.circular(16),
+    final cs = Theme.of(context).colorScheme;
+
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 0, 16, 16), // floating effect
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.12),
+            blurRadius: 20,
+            offset: const Offset(0, 6),
+          ),
+        ],
       ),
-      child: DecoratedBox(
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(24),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  Colors.teal.withOpacity(0.75),
+                  Colors.green.withOpacity(0.75),
+                ],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+            ),
+            child: BottomNavigationBar(
+              currentIndex: index,
+              onTap: onTap,
+              type: BottomNavigationBarType.fixed,
+              backgroundColor: Colors.transparent,
+              elevation: 0,
+              selectedItemColor: Colors.white,
+              unselectedItemColor: Colors.white.withOpacity(0.7),
+              selectedLabelStyle: const TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+              ),
+              unselectedLabelStyle: const TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w500,
+              ),
+              items: [
+                _navItem(Icons.home_outlined, Icons.home, "Home"),
+                _navItem(Icons.task_outlined, Icons.task, "Tasks"),
+                _navItem(Icons.work_outline, Icons.work, "Duty", highlight: true),
+                _navItem(Icons.note_outlined, Icons.note, "Notes"),
+                _navItem(Icons.help_outline, Icons.help, "FAQ's"),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  BottomNavigationBarItem _navItem(
+      IconData icon,
+      IconData active,
+      String label, {
+        bool highlight = false,
+      }) {
+    return BottomNavigationBarItem(
+      icon: Icon(icon),
+      activeIcon: highlight
+          ? Container(
+        padding: const EdgeInsets.all(8),
         decoration: BoxDecoration(
+          shape: BoxShape.circle,
           gradient: LinearGradient(
-            colors: [Colors.green.shade600, Colors.teal.shade400],
+            colors: [Colors.white.withOpacity(0.25), Colors.white10],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.10),
-              offset: const Offset(0, -1),
-              blurRadius: 8,
-            ),
-          ],
         ),
-        child: BottomNavigationBar(
-          currentIndex: index,
-          onTap: onTap,
-          type: BottomNavigationBarType.fixed,
-          elevation: 0,
-          backgroundColor: Colors.transparent,
-          selectedItemColor: Colors.white,
-          unselectedItemColor: Colors.white.withValues(alpha: 0.8),
-          selectedLabelStyle: const TextStyle(fontWeight: FontWeight.w700),
-          unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w500),
-          items: [
-            const BottomNavigationBarItem(
-              icon: Icon(Icons.home_outlined),
-              activeIcon: Icon(Icons.home),
-              label: 'Home',
-            ),
-            const BottomNavigationBarItem(
-              icon: Icon(Icons.task_outlined),
-              activeIcon: Icon(Icons.task),
-              label: 'Tasks',
-            ),
-            BottomNavigationBarItem(
-              // Clean active/inactive without manual containers
-              icon: const Icon(Icons.work_outline),
-              activeIcon: Container(
-                padding: const EdgeInsets.all(8),
-                decoration: const BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: Colors.white24,
-                ),
-                child: const Icon(Icons.work, color: Colors.white),
-              ),
-              label: 'Duty',
-            ),
-            const BottomNavigationBarItem(
-              icon: Icon(Icons.note_outlined),
-              activeIcon: Icon(Icons.note),
-              label: 'Notes',
-            ),
-            // const BottomNavigationBarItem(
-            //   icon: Icon(Icons.help_outline),
-            //   activeIcon: Icon(Icons.help),
-            //   label: "FAQ's",
-            // ),
-          ],
-        ),
-      ),
+        child: Icon(active, color: Colors.white),
+      )
+          : Icon(active),
+      label: label,
     );
   }
 }

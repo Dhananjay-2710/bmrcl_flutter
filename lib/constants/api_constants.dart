@@ -19,6 +19,9 @@ class ApiConstants {
   static const String myTasks = '/tasks/tasklist';
   static const String storeTask = '/tasks/store';
 
+  // Task Type
+  static const String allTaskType = '/task_type/list';
+
   // Users URL
   static const String userListEndpoint = '/user/list';
 
@@ -47,6 +50,7 @@ class ApiConstants {
   // Shift URL
   static const String shiftAssignList  = 'shift_assign/list';
   static const String shiftAssignStore = 'shift_assign/store';
+  static const String shiftAssignBulkStore = 'shift_assign/store_bulk';
   static String shiftAssignUpdate(int id) => 'shift_assign/update/$id';
   static String shiftAssignDelete(int id) => 'shift_assign/delete/$id';
 
@@ -55,4 +59,9 @@ class ApiConstants {
   static const notificationsUnread = 'notifications/unread';
   static const notificationsRead = 'notifications/read/';
   static const notificationsReadAll = 'notifications/read-all';
+
+  // Week Off
+  static const String weekOffListEndpoint = '/week_off/list';
+  static const String weekOffCreateEndpoint = '/week_off/store';
+  static const String weekOffEndpoint = '/week_off';
 }

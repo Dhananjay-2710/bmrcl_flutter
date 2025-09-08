@@ -3,7 +3,7 @@ import '../models/device.dart';
 import '../services/device_service.dart';
 
 class DevicesProvider extends ChangeNotifier {
-  List<DeviceModel> items = [];
+  List<DeviceModel> devices = [];
   bool loading = false;
   String? error;
 
@@ -12,10 +12,10 @@ class DevicesProvider extends ChangeNotifier {
     error = null;
     notifyListeners();
     try {
-      items = await DeviceService.fetchDevices(token);
+      devices = await DeviceService.fetchDevices(token);
     } catch (e) {
       error = e.toString();
-      items = [];
+      devices = [];
     } finally {
       loading = false;
       notifyListeners();

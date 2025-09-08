@@ -7,14 +7,19 @@ class FaqsProvider extends ChangeNotifier {
   bool loading = false;
   String? error;
 
+  bool get hasData => items.isNotEmpty;
+  bool get hasError => error != null;
+
   Future<void> load(String token) async {
     loading = true;
     error = null;
     notifyListeners();
+
     try {
       items = await FaqService.fetchFaqs(token);
     } catch (e) {
       error = e.toString();
+      items = [];
     } finally {
       loading = false;
       notifyListeners();
@@ -22,4 +27,11 @@ class FaqsProvider extends ChangeNotifier {
   }
 
   Future<void> refresh(String token) => load(token);
+
+  void clear() {
+    items = [];
+    error = null;
+    loading = false;
+    notifyListeners();
+  }
 }

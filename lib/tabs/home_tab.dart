@@ -68,7 +68,10 @@ class _HomeTabState extends State<HomeTab> {
             crossAxisSpacing: 12,
             mainAxisSpacing: 12,
             children: [
-              _summaryCard("Tasks", admin.summary?['tasks_count'] ?? 0, Icons.task_alt, Colors.purple),
+              _summaryCard("All", admin.summary?['tasks_count'] ?? 0, Icons.task_alt, Colors.blue),
+              _summaryCard("Pending", admin.summary?['tasks_pending_count'] ?? 0, Icons.task_alt, Colors.orange),
+              _summaryCard("In Progress", admin.summary?['tasks_inprogress_count'] ?? 0, Icons.task_alt, Colors.blueAccent),
+              _summaryCard("Completed", admin.summary?['tasks_completed_count'] ?? 0, Icons.task_alt, Colors.green),
             ],
           ),
 
@@ -494,45 +497,42 @@ class _HomeTabState extends State<HomeTab> {
       );
     }
 
-    final top = devices.take(5).toList();
-
     return Card(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       elevation: 4,
-      child: ListView.separated(
-        padding: const EdgeInsets.all(8),
-        shrinkWrap: true,
-        physics: const NeverScrollableScrollPhysics(),
-        itemCount: top.length,
-        separatorBuilder: (_, __) => const Divider(height: 1),
-        itemBuilder: (_, i) {
-          final d = top[i] as Map<String, dynamic>;
-          final serial = (d['serial_number'] ?? '').toString();
-          final amount = double.tryParse((d['total_device_transactions_amount'] ?? '0').toString()) ?? 0.0;
-          final count = (d['device_transactions_count'] as num?)?.toInt() ?? 0;
-          final passengerCount = int.tryParse((d['total_device_transactions_passengers_count'] ?? '0').toString()) ?? 0;
+      child: SizedBox(
+        height: 300, // 👈 adjust so ~5 items fit
+        child: ListView.separated(
+          padding: const EdgeInsets.all(8),
+          itemCount: devices.length,
+          separatorBuilder: (_, __) => const Divider(height: 1),
+          itemBuilder: (_, i) {
+            final d = devices[i] as Map<String, dynamic>;
+            final serial = (d['serial_number'] ?? '').toString();
+            final amount = double.tryParse((d['total_device_transactions_amount'] ?? '0').toString()) ?? 0.0;
+            final count = (d['device_transactions_count'] as num?)?.toInt() ?? 0;
+            final passengerCount = int.tryParse((d['total_device_transactions_passengers_count'] ?? '0').toString()) ?? 0;
 
-          return ListTile(
-            leading: CircleAvatar(
-              backgroundColor: Colors.teal.withOpacity(0.1),
-              child: const Icon(Icons.devices_other, color: Colors.teal),
-            ),
-            title: Text(
-              serial,
-              style: TextStyle(
-                fontSize: 12, // adjust as needed (default ~16)
+            return ListTile(
+              leading: CircleAvatar(
+                backgroundColor: Colors.teal.withOpacity(0.1),
+                child: const Icon(Icons.devices_other, color: Colors.teal),
               ),
-            ),
-            subtitle: Text(
-              'Tickets: $count \n Passenger Count: $passengerCount',
-              style: TextStyle(fontSize: 10, height: 1.2),
-            ),
-            trailing: Text(
+              title: Text(
+                serial,
+                style: const TextStyle(fontSize: 12),
+              ),
+              subtitle: Text(
+                'Tickets: $count \nPassenger Count: $passengerCount',
+                style: const TextStyle(fontSize: 10, height: 1.2),
+              ),
+              trailing: Text(
                 '₹${amount.toStringAsFixed(0)}',
-                style: const TextStyle(fontWeight: FontWeight.bold)
-            ),
-          );
-        },
+                style: const TextStyle(fontWeight: FontWeight.bold),
+              ),
+            );
+          },
+        ),
       ),
     );
   }
@@ -547,82 +547,75 @@ class _HomeTabState extends State<HomeTab> {
       );
     }
 
-    final top = users.take(6).toList();
-
     return Card(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       elevation: 4,
-      child: ListView.separated(
-        padding: const EdgeInsets.all(2),
-        shrinkWrap: true,
-        physics: const NeverScrollableScrollPhysics(),
-        itemCount: top.length,
-        separatorBuilder: (_, __) => const Divider(height: 1),
-        itemBuilder: (_, i) {
-          final u = top[i] as Map<String, dynamic>;
-          final name = (u['name'] ?? '').toString();
-          final role = (u['role'] ?? '').toString();
-          final profile = u['profile_image'] as String?;
-          final hasProfile = profile != null && profile.isNotEmpty;
+      child: SizedBox(
+        height: 360, // 👈 adjust so ~6 rows fit
+        child: ListView.separated(
+          padding: const EdgeInsets.all(2),
+          itemCount: users.length,
+          separatorBuilder: (_, __) => const Divider(height: 1),
+          itemBuilder: (_, i) {
+            final u = users[i] as Map<String, dynamic>;
+            final name = (u['name'] ?? '').toString();
+            final role = (u['role'] ?? '').toString();
+            final profile = u['profile_image'] as String?;
+            final hasProfile = profile != null && profile.isNotEmpty;
 
-          int _asInt(dynamic v) {
-            if (v == null) return 0;
-            if (v is num) return v.toInt();
-            if (v is String) return int.tryParse(v) ?? 0;
-            return 0;
-          }
-          double asDouble(dynamic v) {
-            if (v == null) return 0.0;
-            if (v is num) return v.toDouble();
-            if (v is String) return double.tryParse(v) ?? 0.0;
-            return 0.0;
-          }
+            int _asInt(dynamic v) {
+              if (v == null) return 0;
+              if (v is num) return v.toInt();
+              if (v is String) return int.tryParse(v) ?? 0;
+              return 0;
+            }
 
-          final int deviceCount          = _asInt(u['device_count']);
-          final int ticketSold           = _asInt(u['ticket_sold']);
-          final double ticketSoldPct     = asDouble(u['ticket_sold_percentage']);
+            double asDouble(dynamic v) {
+              if (v == null) return 0.0;
+              if (v is num) return v.toDouble();
+              if (v is String) return double.tryParse(v) ?? 0.0;
+              return 0.0;
+            }
 
+            final int deviceCount      = _asInt(u['device_count']);
+            final int ticketSold       = _asInt(u['ticket_sold']);
+            final double ticketSoldPct = asDouble(u['ticket_sold_percentage']);
 
-          return ListTile(
-            leading: CircleAvatar(
-              backgroundImage: hasProfile
-                  ? NetworkImage(profile)
-                  : const AssetImage('assets/images/profile.jpg') as ImageProvider,
-            ),
-            title: Text(
-              name,
-              style: const TextStyle(fontSize: 12),
-            ),
-            subtitle: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  role,
-                  style: const TextStyle(fontSize: 10),
-                ),
-                const SizedBox(height: 2),
-                Row(
-                  children: [
-                    Text('Assign Devices: $deviceCount', style: const TextStyle(fontSize: 10)),
-                    const SizedBox(width: 8),
-                    Text('Tickets: $ticketSold', style: const TextStyle(fontSize: 10)),
-                    const SizedBox(width: 8),
-                    Text(
-                      'Sold: ${ticketSoldPct.toStringAsFixed(1)}%',
-                      style: const TextStyle(fontSize: 10),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-            isThreeLine: true,
-            // trailing: const Icon(Icons.chevron_right),
-            onTap: () {
-              // TODO: Navigate to user details, if needed
-            },
-          );
-        },
+            return ListTile(
+              leading: CircleAvatar(
+                backgroundImage: hasProfile
+                    ? NetworkImage(profile)
+                    : const AssetImage('assets/images/profile.jpg') as ImageProvider,
+              ),
+              title: Text(
+                name,
+                style: const TextStyle(fontSize: 12),
+              ),
+              subtitle: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(role, style: const TextStyle(fontSize: 10)),
+                  const SizedBox(height: 2),
+                  Row(
+                    children: [
+                      Text('Assign Devices: $deviceCount', style: const TextStyle(fontSize: 10)),
+                      const SizedBox(width: 8),
+                      Text('Tickets: $ticketSold', style: const TextStyle(fontSize: 10)),
+                      const SizedBox(width: 8),
+                      Text('Sold: ${ticketSoldPct.toStringAsFixed(1)}%',
+                          style: const TextStyle(fontSize: 10)),
+                    ],
+                  ),
+                ],
+              ),
+              isThreeLine: true,
+              onTap: () {
+                // TODO: Navigate to user details, if needed
+              },
+            );
+          },
+        ),
       ),
     );
   }

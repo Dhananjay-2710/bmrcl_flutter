@@ -1,31 +1,3 @@
-// import 'package:flutter/material.dart';
-// import 'features/auth/presentation/login_screen.dart';
-// import 'features/dashboard/presentation/dashboard_screen.dart';
-//
-// class MyApp extends StatelessWidget {
-//   const MyApp({super.key});
-//
-//   @override
-//   Widget build(BuildContext context) {
-//     return MaterialApp(
-//       debugShowCheckedModeBanner: false,
-//       title: 'Veriphy',
-//       theme: ThemeData(
-//         colorScheme: ColorScheme.fromSeed(
-//           seedColor: const Color(0xFFA7D222),
-//           primary: const Color(0xFFA7D222),
-//         ),
-//         useMaterial3: true,
-//       ),
-//       initialRoute: '/login',
-//       routes: {
-//         '/login': (_) => LoginScreen(),
-//         '/dashboard': (_) => const DashboardScreen(),
-//       },
-//     );
-//   }
-// }
-
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 

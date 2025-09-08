@@ -50,6 +50,21 @@ class ShiftAssignService {
     }
   }
 
+  Future<bool> bulkCreate(String token, AssignBulkShiftInput input) async {
+    try {
+      final res = await api.post(
+        ApiConstants.shiftAssignBulkStore,
+        token: token,
+        body: jsonEncode(input.toJson()),
+      );
+      if (res.statusCode == 200 || res.statusCode == 201) return true;
+      _throwForStatus(res.statusCode, res.body);
+    } on SocketException catch (e) {
+      throw Exception('Network/DNS error: ${e.message}');
+    } on TimeoutException {
+      throw Exception('Request timed out.');
+    }
+  }
   Future<bool> update(String token, int id, AssignShiftInput input) async {
     try {
       final res = await api.put(

@@ -340,7 +340,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             Text('© 2025 Frog8. All rights reserved.',
                                 style: TextStyle(fontSize: 12, color: Colors.grey)),
                             SizedBox(height: 4),
-                            Text('Version 1.0.0', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                            Text('Version 1.0.1', style: TextStyle(fontSize: 12, color: Colors.grey)),
                           ],
                         ),
                       ),

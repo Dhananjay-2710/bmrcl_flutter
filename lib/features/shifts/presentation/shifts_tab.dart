@@ -1,6 +1,5 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:location/location.dart';
 import 'package:provider/provider.dart';
@@ -11,11 +10,11 @@ import '../../users/providers/users_provider.dart';
 import '../models/assign_shift_models.dart';
 import '../models/lookup_models.dart';
 import '../models/my_shifts_models.dart';
+import '../models/week_off.dart';
 import '../providers/lookup_provider.dart';
 import '../providers/shift_assign_provider.dart';
 import '../providers/shifts_provider.dart';
-import 'package:path_provider/path_provider.dart';
-import 'package:path/path.dart' as p;
+import '../providers/week_off_provider.dart';
 
 class ShiftsTab extends StatefulWidget {
   const ShiftsTab({super.key});
@@ -26,22 +25,6 @@ class ShiftsTab extends StatefulWidget {
 
 class _ShiftsTabState extends State<ShiftsTab> with SingleTickerProviderStateMixin {
   TabController? _tabCtrl;
-  // final ImagePicker _picker = ImagePicker();
-  // bool get _hasAssignShiftView => context.select<AuthProvider, bool>((auth) {
-  //   final role  = auth.user?.role;
-  //   final perms = auth.user?.permissions ?? const <String>[];
-  //
-  //   // elevated roles get full access
-  //   // const elevated = {'Admin', 'Manager', 'CEO', 'super_admin'};
-  //   // if (elevated.contains(role)) return true;
-  //
-  //   // explicit super-permission
-  //   if (perms.contains('all')) return true;
-  //
-  //   // specific permission
-  //   return perms.contains('assignshift.view');
-  // });
-
   bool get _hasAssignShiftView {
     final perms = context.read<AuthProvider>().user?.permissions ?? const <String>[];
     print("Permision : $perms");
@@ -50,7 +33,7 @@ class _ShiftsTabState extends State<ShiftsTab> with SingleTickerProviderStateMix
   }
 
   void _initOrUpdateTabController({bool force = false}) {
-    final len = _hasAssignShiftView ? 2 : 1;
+    final len = _hasAssignShiftView ? 3 : 1;
     print("len $len");
     if (_tabCtrl == null || force || _tabCtrl!.length != len) {
       final initialIndex = (_tabCtrl?.index ?? 0).clamp(0, len - 1);
@@ -121,18 +104,9 @@ class _ShiftsTabState extends State<ShiftsTab> with SingleTickerProviderStateMix
     final token = context.read<AuthProvider>().token;
     final a = prov.todaysAssignment;
     if (token == null || a == null) return;
-
-    // Step 1: Capture selfie
-    // final File? photo = await pickCompressedImage();
-    // if (photo == null) {
-    //   ScaffoldMessenger.of(context).showSnackBar(
-    //     const SnackBar(content: Text('No photo captured')),
-    //   );
-    //   return;
-    // }
     final photo = await context
         .read<ImagePickerProvider>()
-        .pickCompressedImage(source: ImageSource.camera); // or ImageSource.gallery
+        .pickCompressedImage(source: ImageSource.camera);
 
     if (photo == null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -211,15 +185,6 @@ class _ShiftsTabState extends State<ShiftsTab> with SingleTickerProviderStateMix
       );
       return;
     }
-    // final File? photo = await pickCompressedImage();
-    // if (photo == null) {
-    //   ScaffoldMessenger.of(context).showSnackBar(
-    //     const SnackBar(content: Text('No photo captured')),
-    //   );
-    //   return;
-    // }
-    // final XFile? photo = await _picker.pickImage(source: ImageSource.camera);
-    // if (photo == null) return;
 
     // Step 2: Get location for preview (provider will read again before submit)
     final location = Location();
@@ -274,53 +239,6 @@ class _ShiftsTabState extends State<ShiftsTab> with SingleTickerProviderStateMix
     }
   }
 
-  // Future<File?> pickCompressedImage() async {
-  //   // Step 1: Pick image
-  //   final XFile? photo = await _picker.pickImage(source: ImageSource.camera);
-  //   if (photo == null) return null;
-  //
-  //   final File file = File(photo.path);
-  //
-  //   // Step 2: Temp path
-  //   final dir = await getTemporaryDirectory();
-  //   final targetPath = p.join(
-  //     dir.path,
-  //     "compressed_${DateTime.now().millisecondsSinceEpoch}.jpg",
-  //   );
-  //
-  //   // Step 3: Compress
-  //   final XFile? compressedFile = await FlutterImageCompress.compressAndGetFile(
-  //     file.absolute.path,
-  //     targetPath,
-  //     quality: 80,
-  //     minWidth: 1280,
-  //     minHeight: 720,
-  //   );
-  //
-  //   if (compressedFile == null) return file;
-  //
-  //   // Step 4: Convert XFile → File
-  //   final compressed = File(compressedFile.path);
-  //
-  //   // Step 5: Size check
-  //   final sizeInMB = compressed.lengthSync() / (1024 * 1024);
-  //   print("Compressed size: ${sizeInMB.toStringAsFixed(2)} MB");
-  //
-  //   if (sizeInMB > 5) {
-  //     // re-compress lower quality if needed
-  //     final XFile? smallerFile = await FlutterImageCompress.compressAndGetFile(
-  //       compressed.path,
-  //       targetPath,
-  //       quality: 60,
-  //       minWidth: 1024,
-  //       minHeight: 576,
-  //     );
-  //     return smallerFile != null ? File(smallerFile.path) : compressed;
-  //   }
-  //
-  //   return compressed;
-  // }
-
   Future<bool> _showForceDialog(BuildContext ctx, double distance) async {
     return await showDialog<bool>(
       context: ctx,
@@ -340,199 +258,6 @@ class _ShiftsTabState extends State<ShiftsTab> with SingleTickerProviderStateMix
   }
 
   @override
-  // Widget build(BuildContext context) {
-  //   // final color = Theme.of(context).colorScheme; // (unused)
-  //   final hasAssignShiftView = context.select<AuthProvider, bool>((auth) {
-  //     final perms = auth.user?.permissions ?? const <String>[];
-  //     if (perms.contains('all')) return true;
-  //     return perms.contains('assignshift.view');
-  //   });
-  //
-  //   // Build dynamic tabs + views
-  //   final tabs = <Tab>[
-  //     const Tab(text: 'My Duty'),
-  //     if (hasAssignShiftView) const Tab(text: 'All Shifts'),
-  //   ];
-  //
-  //   final views = <Widget>[
-  //     // ---------- My Duty ----------
-  //     Consumer<ShiftsProvider>(
-  //       builder: (_, prov, __) {
-  //         if (prov.loading && prov.assignments.isEmpty) {
-  //           return const Center(child: CircularProgressIndicator());
-  //         }
-  //         if (prov.error != null) {
-  //           return RefreshIndicator(
-  //             onRefresh: _refreshMy,
-  //             child: ListView(
-  //               physics: const AlwaysScrollableScrollPhysics(),
-  //               padding: const EdgeInsets.all(16),
-  //               children: [
-  //                 Text(prov.error!, style: const TextStyle(color: Colors.red)),
-  //               ],
-  //             ),
-  //           );
-  //         }
-  //         return RefreshIndicator(
-  //           onRefresh: _refreshMy,
-  //           child: ListView(
-  //             padding: const EdgeInsets.all(12),
-  //             children: [
-  //               _todayCard(context, prov),
-  //               const SizedBox(height: 12),
-  //               _assignedDevicesSection(prov.devices),
-  //               const SizedBox(height: 12),
-  //               _attendanceSection(prov.attendance),
-  //               const SizedBox(height: 40),
-  //             ],
-  //           ),
-  //         );
-  //       },
-  //     ),
-  //
-  //     // ---------- All Shifts (only if allowed) ----------
-  //     if (hasAssignShiftView)
-  //       Stack(
-  //         children: [
-  //           Consumer<ShiftAssignProvider>(
-  //             builder: (_, prov, __) {
-  //               final token = context.read<AuthProvider>().token;
-  //
-  //               return RefreshIndicator(
-  //                 onRefresh: () async {
-  //                   if (token != null) await prov.fetchAll(token);
-  //                 },
-  //                 child: prov.loading && prov.items.isEmpty
-  //                     ? ListView(
-  //                   children: const [
-  //                     SizedBox(height: 200),
-  //                     Center(child: CircularProgressIndicator()),
-  //                   ],
-  //                 )
-  //                     : ListView.separated(
-  //                   physics: const AlwaysScrollableScrollPhysics(),
-  //                   padding: const EdgeInsets.all(16),
-  //                   itemCount: prov.items.length,
-  //                   separatorBuilder: (_, __) => const SizedBox(height: 10),
-  //                   itemBuilder: (_, i) {
-  //                     final s = prov.items[i];
-  //                     return ListTile(
-  //                       shape: RoundedRectangleBorder(
-  //                         borderRadius: BorderRadius.circular(12),
-  //                       ),
-  //                       tileColor: Colors.grey.shade50,
-  //                       leading: const Icon(Icons.assignment_turned_in_outlined),
-  //                       title: Text(
-  //                         '${s.stationName ?? s.station?.name ?? '-'} • Gate ${s.gateName ?? s.gates?.name ?? '-'}',
-  //                       ),
-  //                       subtitle: Text(
-  //                         'User: ${s.assignedUserName}  |  Shift: ${s.shiftName}\nDate: ${_fmtDate(s.assignedDate)}',
-  //                       ),
-  //                       isThreeLine: true,
-  //                       trailing: PopupMenuButton<String>(
-  //                         onSelected: (v) async {
-  //                           if (s.isCompleted == 1) return;
-  //                           final t = context.read<AuthProvider>().token;
-  //                           if (t == null) return;
-  //
-  //                           if (v == 'edit') {
-  //                             final input = await _openAssignForm(context, initial: s, token: t);
-  //                             if (input != null) {
-  //                               final ok = await prov.update(t, s.id, input);
-  //                               _toast(context, ok ? 'Updated' : prov.error ?? 'Update failed');
-  //                             }
-  //                           } else if (v == 'delete') {
-  //                             final okConfirm = await _confirmDelete(context);
-  //                             if (okConfirm == true) {
-  //                               final ok = await prov.remove(t, s.id);
-  //                               _toast(context, ok ? 'Deleted' : prov.error ?? 'Delete failed');
-  //                             }
-  //                           }
-  //                         },
-  //                         itemBuilder: (_) => [
-  //                           PopupMenuItem(
-  //                             value: 'edit',
-  //                             enabled: s.isCompleted != 1,
-  //                             child: Text(
-  //                               'Edit',
-  //                               style: TextStyle(
-  //                                 color: s.isCompleted == 1 ? Colors.grey : Colors.black,
-  //                               ),
-  //                             ),
-  //                           ),
-  //                           PopupMenuItem(
-  //                             value: 'delete',
-  //                             enabled: s.isCompleted != 1,
-  //                             child: Text(
-  //                               'Delete',
-  //                               style: TextStyle(
-  //                                 color: s.isCompleted == 1 ? Colors.grey : Colors.black,
-  //                               ),
-  //                             ),
-  //                           ),
-  //                         ],
-  //                       ),
-  //                     );
-  //                   },
-  //                 ),
-  //               );
-  //             },
-  //           ),
-  //
-  //           // FAB (create)
-  //           Positioned(
-  //             right: 16,
-  //             bottom: 16,
-  //             child: FloatingActionButton.extended(
-  //               onPressed: () async {
-  //                 final token = context.read<AuthProvider>().token;
-  //                 if (token == null) {
-  //                   ScaffoldMessenger.of(context).showSnackBar(
-  //                     const SnackBar(content: Text('Session expired. Please login again.')),
-  //                   );
-  //                   return;
-  //                 }
-  //                 final input = await _openAssignForm(context, token: token);
-  //                 if (input != null) {
-  //                   final ok = await context.read<ShiftAssignProvider>().create(token, input);
-  //                   final msg = ok
-  //                       ? 'Assigned'
-  //                       : (context.read<ShiftAssignProvider>().error ?? 'Failed');
-  //                   // ignore: use_build_context_synchronously
-  //                   ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
-  //                 }
-  //               },
-  //               icon: const Icon(Icons.add),
-  //               label: const Text('Assign'),
-  //             ),
-  //           ),
-  //         ],
-  //       ),
-  //   ];
-  //
-  //   return DefaultTabController(
-  //     key: ValueKey(tabs.length), // rebuild when tab count changes
-  //     length: tabs.length,
-  //     child: Scaffold(
-  //       appBar: AppBar(
-  //         automaticallyImplyLeading: false,
-  //         title: null, // <- remove the title
-  //         // Show TabBar only if there are 2 tabs
-  //         bottom: tabs.length > 1
-  //             ? TabBar(
-  //           tabs: tabs,
-  //           isScrollable: false,
-  //           indicatorWeight: 3,
-  //         )
-  //             : null,
-  //         elevation: 0,
-  //       ),
-  //       // If only one tab, render its view directly; otherwise use TabBarView
-  //       body: tabs.length > 1 ? TabBarView(children: views) : views.first,
-  //     ),
-  //   );
-  //
-  // }
 
   Widget build(BuildContext context) {
     final color = Theme.of(context).colorScheme;
@@ -542,7 +267,7 @@ class _ShiftsTabState extends State<ShiftsTab> with SingleTickerProviderStateMix
       return perms.contains('assignshift.view');
     });
     print("hasAssignShiftView $hasAssignShiftView");
-    final tabCount = hasAssignShiftView ? 2 : 1;
+    final tabCount = hasAssignShiftView ? 3 : 1;
 
     return DefaultTabController(
       length: tabCount,
@@ -553,6 +278,7 @@ class _ShiftsTabState extends State<ShiftsTab> with SingleTickerProviderStateMix
             tabs: [
               if (hasAssignShiftView) const Tab(text: 'My Duty'),
               if (hasAssignShiftView) const Tab(text: 'All Shifts'),
+              if (hasAssignShiftView) const Tab(text: 'All Week Off'),
             ],
           ),
         ),
@@ -619,61 +345,108 @@ class _ShiftsTabState extends State<ShiftsTab> with SingleTickerProviderStateMix
                           separatorBuilder: (_, __) => const SizedBox(height: 10),
                           itemBuilder: (_, i) {
                             final s = prov.items[i];
-                            return ListTile(
+                            return Card(
                               shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
+                                borderRadius: BorderRadius.circular(4),
                               ),
-                              tileColor: Colors.grey.shade50,
-                              leading: const Icon(Icons.assignment_turned_in_outlined),
-                              title: Text(
-                                '${s.stationName ?? s.station?.name ?? '-'} • Gate ${s.gateName ?? s.gates?.name ?? '-'}',
-                              ),
-                              subtitle: Text(
-                                'User: ${s.assignedUserName}  |  Shift: ${s.shiftName}\nDate: ${_fmtDate(s.assignedDate)}',
-                              ),
-                              isThreeLine: true,
-                              trailing: PopupMenuButton<String>(
-                                onSelected: (v) async {
-                                  if (s.isCompleted == 1) return; // block actions if completed
-                                  final t = context.read<AuthProvider>().token;
-                                  if (t == null) return;
+                              elevation: 2,
+                              margin: const EdgeInsets.symmetric(vertical: 2, horizontal: 1),
+                              child: Padding(
+                                padding: const EdgeInsets.all(2.0),
+                                child: ListTile(
+                                  contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                  leading: const Icon(Icons.assignment_turned_in_outlined, size: 36, color: Colors.blue),
+                                  title: Text(
+                                    '${s.stationName ?? s.station?.name ?? '-'} • Gate ${s.gateName ?? s.gates?.name ?? '-'}',
+                                    style: const TextStyle(fontWeight: FontWeight.bold),
+                                  ),
+                                  subtitle: RichText(
+                                    text: TextSpan(
+                                      style: TextStyle(
+                                        color: Colors.grey[800], // softer color for professional look
+                                        fontSize: 14,
+                                        height: 1.4, // line spacing for readability
+                                      ),
+                                      children: [
+                                        const TextSpan(
+                                          text: 'User: ',
+                                          style: TextStyle(fontWeight: FontWeight.bold), // medium weight for label
+                                        ),
+                                        TextSpan(
+                                          text: s.assignedUserName,
+                                          style: const TextStyle(fontWeight: FontWeight.w500),
+                                        ),
+                                        const TextSpan(
+                                          text: ' | ',
+                                          style: TextStyle(fontWeight: FontWeight.bold), // medium weight for label
+                                        ),
+                                        const TextSpan(
+                                          text: 'Shift: ',
+                                          style: TextStyle(fontWeight: FontWeight.bold),
+                                        ),
+                                        TextSpan(
+                                          text: s.shiftName,
+                                          style: const TextStyle(fontWeight: FontWeight.w500),
+                                        ),
+                                        const TextSpan(text: '\n'),
+                                        const TextSpan(
+                                          text: 'Date: ',
+                                          style: TextStyle(fontWeight: FontWeight.bold),
+                                        ),
+                                        TextSpan(
+                                          text: _fmtDate(s.assignedDate),
+                                          style: const TextStyle(fontWeight: FontWeight.w500),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  isThreeLine: true,
+                                  trailing: PopupMenuButton(
+                                    icon: const Icon(Icons.more_vert),
+                                    itemBuilder: (_) => [
+                                      PopupMenuItem(
+                                        enabled: s.isCompleted != 1,
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            IconButton(
+                                              icon: const Icon(Icons.edit, color: Colors.blue),
+                                              onPressed: () async {
+                                                if (s.isCompleted == 1) return;
+                                                final t = context.read<AuthProvider>().token;
+                                                if (t == null) return;
 
-                                  if (v == 'edit') {
-                                    final input = await _openAssignForm(context, initial: s, token: t);
-                                    if (input != null) {
-                                      final ok = await prov.update(t, s.id, input);
-                                      _toast(context, ok ? 'Updated' : prov.error ?? 'Update failed');
-                                    }
-                                  } else if (v == 'delete') {
-                                    final okConfirm = await _confirmDelete(context);
-                                    if (okConfirm == true) {
-                                      final ok = await prov.remove(t, s.id);
-                                      _toast(context, ok ? 'Deleted' : prov.error ?? 'Delete failed');
-                                    }
-                                  }
-                                },
-                                itemBuilder: (_) => [
-                                  PopupMenuItem(
-                                    value: 'edit',
-                                    enabled: s.isCompleted != 1,
-                                    child: Text(
-                                      'Edit',
-                                      style: TextStyle(
-                                        color: s.isCompleted == 1 ? Colors.grey : Colors.black,
+                                                final input = await _openAssignForm(context, initial: s, token: t);
+                                                if (input != null) {
+                                                  final ok = await prov.update(t, s.id, input);
+                                                  _toast(context, ok ? 'Updated' : prov.error ?? 'Update failed');
+                                                }
+
+                                                Navigator.pop(context); // Close the menu after action
+                                              },
+                                            ),
+                                            IconButton(
+                                              icon: const Icon(Icons.delete, color: Colors.red),
+                                              onPressed: () async {
+                                                if (s.isCompleted == 1) return;
+                                                final t = context.read<AuthProvider>().token;
+                                                if (t == null) return;
+
+                                                final okConfirm = await _confirmDelete(context);
+                                                if (okConfirm == true) {
+                                                  final ok = await prov.remove(t, s.id);
+                                                  _toast(context, ok ? 'Deleted' : prov.error ?? 'Delete failed');
+                                                }
+
+                                                Navigator.pop(context); // Close the menu after action
+                                              },
+                                            ),
+                                          ],
+                                        ),
                                       ),
-                                    ),
+                                    ],
                                   ),
-                                  PopupMenuItem(
-                                    value: 'delete',
-                                    enabled: s.isCompleted != 1,
-                                    child: Text(
-                                      'Delete',
-                                      style: TextStyle(
-                                        color: s.isCompleted == 1 ? Colors.grey : Colors.black,
-                                      ),
-                                    ),
-                                  ),
-                                ],
+                                ),
                               ),
                             );
                           },
@@ -683,10 +456,260 @@ class _ShiftsTabState extends State<ShiftsTab> with SingleTickerProviderStateMix
                   ),
 
                   // FAB (create)
+                  // Positioned(
+                  //   right: 16,
+                  //   bottom: 80,
+                  //   child: FloatingActionButton.extended(
+                  //     heroTag: 'Assign Shift',
+                  //     onPressed: () async {
+                  //       final token = context.read<AuthProvider>().token;
+                  //       if (token == null) {
+                  //         ScaffoldMessenger.of(context).showSnackBar(
+                  //           const SnackBar(content: Text('Session expired. Please login again.')),
+                  //         );
+                  //         return;
+                  //       }
+                  //       final input = await _openAssignForm(context, token: token);
+                  //       if (input != null) {
+                  //         final ok = await context.read<ShiftAssignProvider>().create(token, input);
+                  //         final msg = ok
+                  //             ? 'Assigned'
+                  //             : (context.read<ShiftAssignProvider>().error ?? 'Failed');
+                  //         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+                  //       }
+                  //     },
+                  //     icon: const Icon(Icons.add),
+                  //     label: const Text('Assign'),
+                  //   ),
+                  // ),
+                  // Positioned(
+                  //   right: 16,
+                  //   bottom: 16,
+                  //   child: FloatingActionButton.extended(
+                  //     heroTag: 'Bulk Assign Shift',
+                  //     onPressed: () async {
+                  //       final token = context.read<AuthProvider>().token;
+                  //       if (token == null) {
+                  //         ScaffoldMessenger.of(context).showSnackBar(
+                  //           const SnackBar(content: Text('Session expired. Please login again.')),
+                  //         );
+                  //         return;
+                  //       }
+                  //       final input = await _openAssignForm(context, token: token);
+                  //       if (input != null) {
+                  //         final ok = await context.read<ShiftAssignProvider>().create(token, input);
+                  //         final msg = ok
+                  //             ? 'Assigned'
+                  //             : (context.read<ShiftAssignProvider>().error ?? 'Failed');
+                  //         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+                  //       }
+                  //     },
+                  //     icon: const Icon(Icons.add),
+                  //     label: const Text('Assign Bulk Shift'),
+                  //   ),
+                  // ),
+                  Positioned(
+                    right: 16,
+                    bottom: 16,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        FloatingActionButton.extended(
+                          heroTag: 'assign_shift',
+                          onPressed: () async {
+                            final token = context.read<AuthProvider>().token;
+                            if (token == null) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('Session expired. Please login again.')),
+                              );
+                              return;
+                            }
+                            final input = await _openAssignForm(context, token: token);
+                            if (input != null) {
+                              final ok = await context.read<ShiftAssignProvider>().create(token, input);
+                              final msg = ok
+                                  ? 'Assigned'
+                                  : (context.read<ShiftAssignProvider>().error ?? 'Failed');
+                              ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+                            }
+                          },
+                          icon: const Icon(Icons.filter_tilt_shift_sharp),
+                          label: const Text('Assign'),
+                        ),
+                        const SizedBox(height: 12), // spacing between buttons
+                        FloatingActionButton.extended(
+                          heroTag: 'bulk_assign_shift',
+                          onPressed: () async {
+                            final token = context.read<AuthProvider>().token;
+                            if (token == null) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('Session expired. Please login again.')),
+                              );
+                              return;
+                            }
+                            final input = await _openBulkAssignForm(context, token: token);
+                            if (input != null) {
+                              final ok = await context.read<ShiftAssignProvider>().bulkCreate(token, input);
+                              final msg = ok
+                                  ? 'Bulk Assigned'
+                                  : (context.read<ShiftAssignProvider>().error ?? 'Failed');
+                              ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+                            }
+                          },
+                          icon: const Icon(Icons.filter_tilt_shift_sharp),
+                          label: const Text('Bulk Assign'),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            if (hasAssignShiftView)
+              Stack(
+                children: [
+                  Consumer<WeekOffProvider>(
+                    builder: (context, provider, _) {
+                      final token = context.read<AuthProvider>().token;
+
+                      if (!provider.loading && !provider.initialized && token != null) {
+                        provider.fetchWeekOffs(token); // fetch initial data
+                      }
+
+                      if (provider.loading && provider.weekOffs.isEmpty) {
+                        return const Center(child: CircularProgressIndicator());
+                      }
+
+                      if (provider.error != null) {
+                        return Center(
+                          child: Text(provider.error!, style: const TextStyle(color: Colors.red)),
+                        );
+                      }
+
+                      if (provider.weekOffs.isEmpty) {
+                        return Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: const [
+                              Icon(Icons.beach_access, size: 64, color: Colors.grey),
+                              SizedBox(height: 16),
+                              Text('No Week Offs Found', style: TextStyle(fontSize: 18, color: Colors.grey)),
+                              SizedBox(height: 8),
+                              Text('Tap + to add a new Week Off.', style: TextStyle(color: Colors.grey)),
+                            ],
+                          ),
+                        );
+                      }
+
+                      return RefreshIndicator(
+                        onRefresh: () async {
+                          if (token != null) await provider.fetchWeekOffs(token, forceRefresh: true);
+                        },
+                        child: ListView.builder(
+                          physics: const AlwaysScrollableScrollPhysics(),
+                          itemCount: provider.weekOffs.length,
+                          itemBuilder: (context, index) {
+                            final item = provider.weekOffs[index];
+                            return Card(
+                              margin: const EdgeInsets.symmetric(vertical: 6, horizontal: 12),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              elevation: 2,
+                              child: ListTile(
+                                contentPadding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+                                leading: const Icon(Icons.event_available, size: 36, color: Colors.blue),
+                                title: Text(
+                                  '${item.userName} ${item.weekday != null ? '- ${item.weekday}' : ' - NA'}',
+                                  style: const TextStyle(fontWeight: FontWeight.bold),
+                                ),
+                                subtitle: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const SizedBox(height: 4),
+                                    Text('Recurring: ${item.isRecurring ? 'Yes' : 'No'}'),
+                                    if (item.offDate != null)
+                                      Text('Off Date: ${_formatDate(item.offDate!)}'),
+                                    if (item.reason != null) Text('Reason: ${item.reason}'),
+                                  ],
+                                ),
+                                isThreeLine: true,
+                                trailing: PopupMenuButton<String>(
+                                  icon: const Icon(Icons.more_vert),
+                                  onSelected: (value) async {
+                                    final token = context.read<AuthProvider>().token;
+                                    if (token == null) return;
+
+                                    if (value == 'edit') {
+                                      final updated = await Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (_) => WeekOffScreen(
+                                            weekOff: item,
+                                            token: token,
+                                          ),
+                                        ),
+                                      );
+
+                                      if (updated != null && updated is WeekOff) {
+                                        await provider.updateWeekOff(token, updated);
+                                        await provider.fetchWeekOffs(token);
+                                      }
+                                    } else if (value == 'delete') {
+                                      final confirm = await showDialog<bool>(
+                                        context: context,
+                                        builder: (_) => AlertDialog(
+                                          title: const Text('Confirm Delete'),
+                                          content: const Text('Are you sure you want to delete this Week Off?'),
+                                          actions: [
+                                            TextButton(
+                                              onPressed: () => Navigator.pop(context, false),
+                                              child: const Text('Cancel'),
+                                            ),
+                                            TextButton(
+                                              onPressed: () => Navigator.pop(context, true),
+                                              child: const Text('Delete', style: TextStyle(color: Colors.red)),
+                                            ),
+                                          ],
+                                        ),
+                                      );
+
+                                      if (confirm == true) {
+                                        await provider.deleteWeekOff(token, item.id);
+                                        await provider.fetchWeekOffs(token);
+                                      }
+                                    }
+                                  },
+                                  itemBuilder: (_) => [
+                                    PopupMenuItem(
+                                      child: Row(
+                                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                                        children: [
+                                          GestureDetector(
+                                            onTap: () => Navigator.pop(_, 'edit'),
+                                            child: const Icon(Icons.edit, color: Colors.blue),
+                                          ),
+                                          GestureDetector(
+                                            onTap: () => Navigator.pop(_, 'delete'),
+                                            child: const Icon(Icons.delete, color: Colors.red),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      );
+                    },
+                  ),
                   Positioned(
                     right: 16,
                     bottom: 16,
                     child: FloatingActionButton.extended(
+                      heroTag: 'weekoff_tab',
                       onPressed: () async {
                         final token = context.read<AuthProvider>().token;
                         if (token == null) {
@@ -695,17 +718,37 @@ class _ShiftsTabState extends State<ShiftsTab> with SingleTickerProviderStateMix
                           );
                           return;
                         }
-                        final input = await _openAssignForm(context, token: token);
-                        if (input != null) {
-                          final ok = await context.read<ShiftAssignProvider>().create(token, input);
+
+                        final newWeekOff = await showModalBottomSheet<WeekOff>(
+                          context: context,
+                          isScrollControlled: true,
+                          backgroundColor: Colors.white,
+                          shape: const RoundedRectangleBorder(
+                            borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+                          ),
+                          builder: (_) => Padding(
+                            padding: EdgeInsets.only(
+                              bottom: MediaQuery.of(context).viewInsets.bottom,
+                            ),
+                            child: WeekOffScreen(token: token),
+                          ),
+                        );
+
+                        if (newWeekOff != null) {
+                          final ok = await context.read<WeekOffProvider>().createWeekOff(
+                            token,
+                            newWeekOff,
+                          );
                           final msg = ok
-                              ? 'Assigned'
-                              : (context.read<ShiftAssignProvider>().error ?? 'Failed');
+                              ? 'Week off assigned successfully'
+                              : (context.read<WeekOffProvider>().error ?? 'Failed');
                           ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+
+                          await context.read<WeekOffProvider>().fetchWeekOffs(token); // ✅ Refresh after create
                         }
                       },
                       icon: const Icon(Icons.add),
-                      label: const Text('Assign'),
+                      label: const Text('Add Week Off'),
                     ),
                   ),
                 ],
@@ -714,6 +757,11 @@ class _ShiftsTabState extends State<ShiftsTab> with SingleTickerProviderStateMix
         ),
       ),
     );
+  }
+
+  String _formatDate(DateTime? date) {
+    if (date == null) return '-';
+    return "${date.day.toString().padLeft(2,'0')}-${date.month.toString().padLeft(2,'0')}-${date.year}";
   }
 
   void _toast(BuildContext ctx, String msg) {
@@ -1039,6 +1087,22 @@ class _ShiftsTabState extends State<ShiftsTab> with SingleTickerProviderStateMix
       builder: (_) => _AssignFormSheet(token: token, initial: initial),
     );
   }
+
+  Future<AssignBulkShiftInput?> _openBulkAssignForm(
+      BuildContext context, {
+        required String token,
+        AssignShift? initial,
+      }) {
+    return showModalBottomSheet<AssignBulkShiftInput>(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (_) => _AssignBulkFormSheet(token: token, initial: initial),
+    );
+  }
+
   String _fmtDate(DateTime d) {
     return '${d.year.toString().padLeft(4, '0')}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
   }
@@ -1104,7 +1168,6 @@ class _AssignFormSheetState extends State<_AssignFormSheet> {
   static const brand = Color(0xFFA7D222);
 
   final _formKey = GlobalKey<FormState>();
-  final _userCtrl = TextEditingController();
   final _dateCtrl = TextEditingController();
 
   bool _loading = true;
@@ -1128,7 +1191,6 @@ class _AssignFormSheetState extends State<_AssignFormSheet> {
       _gateId = i.gateId;
       _date = i.assignedDate;
       _dateCtrl.text = _fmtDate(i.assignedDate);
-      _userCtrl.text = i.userId.toString();
     }
     _bootstrap();
   }
@@ -1155,7 +1217,6 @@ class _AssignFormSheetState extends State<_AssignFormSheet> {
 
   @override
   void dispose() {
-    _userCtrl.dispose();
     _dateCtrl.dispose();
     super.dispose();
   }
@@ -1163,7 +1224,7 @@ class _AssignFormSheetState extends State<_AssignFormSheet> {
   @override
   Widget build(BuildContext context) {
     final meta = context.watch<LookupProvider>();
-final usersProv = context.watch<UsersProvider>();
+    final usersProv = context.watch<UsersProvider>();
 
     if (_loading) {
       return Padding(
@@ -1324,7 +1385,6 @@ final usersProv = context.watch<UsersProvider>();
                 onPressed: () {
                   if (!_formKey.currentState!.validate()) return;
                   final d = _date;
-                  // final uid = int.tryParse(_userCtrl.text);
                   if (d == null || _userId == null || _shiftId == null || _stationId == null || _gateId == null) return;
                   final input = AssignShiftInput(
                     assignedDate: d,
@@ -1344,6 +1404,703 @@ final usersProv = context.watch<UsersProvider>();
     );
   }
 
+    String _fmtDate(DateTime d) =>
+      '${d.year.toString().padLeft(4, '0')}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+}
+
+class _AssignBulkFormSheet extends StatefulWidget {
+  final String token;
+  final AssignShift? initial;
+  const _AssignBulkFormSheet({required this.token, this.initial});
+
+  @override
+  State<_AssignBulkFormSheet> createState() => _AssignBulkFormSheetState();
+}
+
+class _AssignBulkFormSheetState extends State<_AssignBulkFormSheet> {
+  static const brand = Color(0xFFA7D222);
+
+  final _formKey = GlobalKey<FormState>();
+  final _dateFromCtrl = TextEditingController();
+  final _dateToCtrl = TextEditingController();
+
+  bool _loading = true;
+  String? _error;
+
+  int? _shiftId;
+  int? _stationId;
+  int? _gateId;
+  DateTime? _fromDate;
+  DateTime? _toDate;
+  int? _userId;
+
+  @override
+  void initState() {
+    super.initState();
+    // seed initial values (edit case)
+    final i = widget.initial;
+    _userId = widget.initial?.userId;
+    if (i != null) {
+      _shiftId = i.shiftId;
+      _stationId = i.stationId;
+      _gateId = i.gateId;
+      _fromDate = i.assignedFromDate;
+      _toDate = i.assignedToDate;
+      _dateFromCtrl.text = _fmtDate(i.assignedFromDate);
+      _dateToCtrl.text = _fmtDate(i.assignedToDate);
+    }
+    _bootstrap();
+  }
+
+  Future<void> _bootstrap() async {
+    final meta = context.read<LookupProvider>();
+    final usersProv = context.read<UsersProvider>();
+    try {
+      await meta.ensureBasics(widget.token);
+      if (_stationId != null) {
+        await meta.fetchGatesForStation(widget.token, _stationId!);
+      }
+
+      if (usersProv.items.isEmpty) {
+        await usersProv.load(widget.token);
+      }
+      setState(() {
+        _loading = false;
+      });
+    } catch (e) {
+      setState(() { _error = e.toString(); _loading = false; });
+    }
+  }
+
+  @override
+  void dispose() {
+    _dateFromCtrl.dispose();
+    _dateToCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final meta = context.watch<LookupProvider>();
+    final usersProv = context.watch<UsersProvider>();
+
+    if (_loading) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: const [
+            SizedBox(height: 4, width: 60),
+            Center(child: CircularProgressIndicator()),
+            SizedBox(height: 16),
+            Text('Loading…'),
+          ],
+        ),
+      );
+    }
+
+    if (_error != null) {
+      return Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(_error!, style: const TextStyle(color: Colors.red)),
+            const SizedBox(height: 12),
+            ElevatedButton(
+              onPressed: () { Navigator.pop(context); },
+              child: const Text('Close'),
+            )
+          ],
+        ),
+      );
+    }
+
+    final gates = (_stationId == null)
+        ? const <GateLite>[]
+        : (meta.gatesByStation[_stationId!] ?? const <GateLite>[]);
+    final gatesLoading = (_stationId != null) && meta.isLoadingGates(_stationId!);
+
+    return Padding(
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.of(context).viewInsets.bottom + 16,
+        left: 16, right: 16, top: 16,
+      ),
+      child: Form(
+        key: _formKey,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(height: 4, width: 60,
+              decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2)),
+            ),
+            const SizedBox(height: 12),
+            Text(widget.initial == null ? 'Assign Bulk Shift' : 'Update Assignment',
+                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+            const SizedBox(height: 12),
+
+            // Date
+            TextFormField(
+              controller: _dateFromCtrl,
+              readOnly: true,
+              decoration: InputDecoration(
+                labelText: 'Assigned From Date',
+                suffixIcon: IconButton(
+                  icon: const Icon(Icons.date_range, color: brand),
+                  onPressed: () async {
+                    final now = DateTime.now();
+                    final picked = await showDatePicker(
+                      context: context,
+                      initialDate: _fromDate ?? now,
+                      firstDate: DateTime(now.year - 1),
+                      lastDate: DateTime(now.year + 2),
+                    );
+                    if (picked != null) {
+                      setState(() { _fromDate = picked; _dateFromCtrl.text = _fmtDate(picked); });
+                    }
+                  },
+                ),
+                border: const OutlineInputBorder(),
+              ),
+              validator: (v) => (v == null || v.isEmpty) ? 'Pick date' : null,
+            ),
+            const SizedBox(height: 10),
+
+            TextFormField(
+              controller: _dateToCtrl,
+              readOnly: true,
+              decoration: InputDecoration(
+                labelText: 'Assigned To Date',
+                suffixIcon: IconButton(
+                  icon: const Icon(Icons.date_range, color: brand),
+                  onPressed: () async {
+                    final now = DateTime.now();
+                    final picked = await showDatePicker(
+                      context: context,
+                      initialDate: _toDate ?? now,
+                      firstDate: DateTime(now.year - 1),
+                      lastDate: DateTime(now.year + 2),
+                    );
+                    if (picked != null) {
+                      setState(() { _toDate = picked; _dateToCtrl.text = _fmtDate(picked); });
+                    }
+                  },
+                ),
+                border: const OutlineInputBorder(),
+              ),
+              validator: (v) => (v == null || v.isEmpty) ? 'Pick date' : null,
+            ),
+            const SizedBox(height: 10),
+
+            DropdownButtonFormField<int>(
+              value: _userId, // safe
+              isExpanded: true,
+              items: usersProv.items.map((u) {
+                final title = (u.name.isNotEmpty == true) ? u.name : (u.email ?? 'User ${u.id}');
+                return DropdownMenuItem<int>(value: u.id, child: Text(title));
+              }).toList(),
+              onChanged: (v) => setState(() => _userId = v),
+              decoration: const InputDecoration(
+                labelText: 'User',
+                border: OutlineInputBorder(),
+              ),
+              validator: (v) => v == null ? 'Select a user' : null,
+            ),
+
+            const SizedBox(height: 10),
+
+            // Shift
+            DropdownButtonFormField<int>(
+              value: _shiftId,
+              items: meta.shifts.map((s) => DropdownMenuItem(
+                value: s.id,
+                child: Text('${s.name} (${s.startTime ?? '--'} - ${s.endTime ?? '--'})'),
+              )).toList(),
+              onChanged: (v) => setState(() => _shiftId = v),
+              decoration: const InputDecoration(labelText: 'Shift', border: OutlineInputBorder()),
+              validator: (v) => v == null ? 'Select a shift' : null,
+            ),
+            const SizedBox(height: 10),
+
+            // Station
+            DropdownButtonFormField<int>(
+              value: _stationId,
+              items: meta.stations.map((st) => DropdownMenuItem(
+                value: st.id, child: Text(st.name),
+              )).toList(),
+              onChanged: (v) async {
+                setState(() { _stationId = v; _gateId = null; });
+                if (v != null) {
+                  await context.read<LookupProvider>().fetchGatesForStation(widget.token, v);
+                }
+              },
+              decoration: const InputDecoration(labelText: 'Station', border: OutlineInputBorder()),
+              validator: (v) => v == null ? 'Select a station' : null,
+            ),
+            const SizedBox(height: 10),
+
+            // Gate
+            gatesLoading
+                ? const Padding(
+              padding: EdgeInsets.symmetric(vertical: 8),
+              child: LinearProgressIndicator(),
+            )
+                : DropdownButtonFormField<int>(
+              value: _gateId,
+              items: gates.map((g) => DropdownMenuItem(
+                value: g.id, child: Text('${g.name} (${g.type ?? '-'})'),
+              )).toList(),
+              onChanged: (v) => setState(() => _gateId = v),
+              decoration: const InputDecoration(labelText: 'Gate', border: OutlineInputBorder()),
+              validator: (v) => v == null ? 'Select a gate' : null,
+            ),
+            const SizedBox(height: 16),
+
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: brand, foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+                icon: const Icon(Icons.save),
+                label: Text(widget.initial == null ? 'Assign' : 'Update'),
+                onPressed: () {
+                  if (!_formKey.currentState!.validate()) return;
+                  final fromDate = _fromDate;
+                  final toDate = _toDate;
+                  if (fromDate == null || toDate == null || _userId == null || _shiftId == null || _stationId == null || _gateId == null) return;
+                  final input = AssignBulkShiftInput(
+                    assignedFromDate: fromDate,
+                    assignedToDate: toDate,
+                    userId: _userId!,
+                    shiftId: _shiftId!,
+                    stationId: _stationId!,
+                    gateId: _gateId!,
+                  );
+                  Navigator.pop(context, input);
+                },
+              ),
+            ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+  }
+
   String _fmtDate(DateTime d) =>
       '${d.year.toString().padLeft(4, '0')}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+}
+
+class WeekOffScreen extends StatefulWidget {
+  final WeekOff? weekOff;
+  final String token;
+
+  const WeekOffScreen({Key? key, this.weekOff, required this.token})
+      : super(key: key);
+
+  @override
+  State<WeekOffScreen> createState() => _WeekOffScreenState();
+}
+
+class _WeekOffScreenState extends State<WeekOffScreen> {
+  final _formKey = GlobalKey<FormState>();
+  DateTime? _offDate;
+  bool _isRecurring = false;
+  String? _weekday;
+  String? _reason;
+  int? _userId;
+
+  bool _loading = true;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _userId = widget.weekOff?.userId;
+    _offDate = widget.weekOff?.offDate;
+    _isRecurring = widget.weekOff?.isRecurring ?? false;
+    _weekday = widget.weekOff?.weekday?.isNotEmpty == true
+        ? widget.weekOff!.weekday
+        : null;
+    _reason = widget.weekOff?.reason;
+
+    _loadUsers();
+  }
+
+  Future<void> _loadUsers() async {
+    try {
+      final usersProv = context.read<UsersProvider>();
+      if (usersProv.items.isEmpty) {
+        await usersProv.load(widget.token);
+      }
+      setState(() => _loading = false);
+    } catch (e) {
+      setState(() {
+        _error = e.toString();
+        _loading = false;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final usersProv = context.watch<UsersProvider>();
+
+    if (_loading) {
+      return const Padding(
+        padding: EdgeInsets.all(16),
+        child: Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    if (_error != null) {
+      return Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(_error!, style: const TextStyle(color: Colors.red)),
+            const SizedBox(height: 12),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Close'),
+            )
+          ],
+        ),
+      );
+    }
+
+    return Material(
+      borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+      clipBehavior: Clip.antiAlias,
+      child: Padding(
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.of(context).viewInsets.bottom,
+          left: 16,
+          right: 16,
+          top: 16,
+        ),
+        child: SingleChildScrollView(
+          child: Form(
+            key: _formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  height: 4,
+                  width: 60,
+                  decoration: BoxDecoration(
+                      color: Colors.grey[300],
+                      borderRadius: BorderRadius.circular(2)),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  widget.weekOff == null ? 'Add Week Off' : 'Edit Week Off',
+                  style: const TextStyle(
+                      fontWeight: FontWeight.bold, fontSize: 16),
+                ),
+                const SizedBox(height: 12),
+
+                // User Dropdown
+                DropdownButtonFormField<int>(
+                  value: _userId,
+                  items: usersProv.items.map((u) {
+                    final title = u.name.isNotEmpty
+                        ? u.name
+                        : (u.email ?? 'User ${u.id}');
+                    return DropdownMenuItem<int>(
+                      value: u.id,
+                      child: Text(title),
+                    );
+                  }).toList(),
+                  onChanged: (v) => setState(() => _userId = v),
+                  decoration: const InputDecoration(
+                    labelText: 'User',
+                    border: OutlineInputBorder(),
+                  ),
+                  validator: (v) => v == null ? 'Select a user' : null,
+                ),
+                const SizedBox(height: 12),
+
+                // Date Picker (only show if not recurring)
+                if (!_isRecurring)
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: const Icon(Icons.date_range),
+                    title: Text(
+                      _offDate != null
+                          ? "${_offDate!.day.toString().padLeft(2, '0')}-${_offDate!.month.toString().padLeft(2, '0')}-${_offDate!.year}"
+                          : "Pick Off Date",
+                    ),
+                    onTap: () async {
+                      final picked = await showDatePicker(
+                        context: context,
+                        initialDate: _offDate ?? DateTime.now(),
+                        firstDate: DateTime(2020),
+                        lastDate: DateTime(2100),
+                      );
+                      if (picked != null) setState(() => _offDate = picked);
+                    },
+                  ),
+                const SizedBox(height: 12),
+
+                // Recurring Switch
+                SwitchListTile(
+                  title: const Text("Recurring weekly"),
+                  value: _isRecurring,
+                  onChanged: (val) {
+                    setState(() {
+                      _isRecurring = val;
+                      if (val) _offDate = null; // clear date if recurring
+                    });
+                  },
+                ),
+
+                // Weekday dropdown (only show if recurring)
+                if (_isRecurring)
+                  DropdownButtonFormField<String>(
+                    value: _weekday,
+                    items: const [
+                      DropdownMenuItem(value: "Monday", child: Text("Monday")),
+                      DropdownMenuItem(value: "Tuesday", child: Text("Tuesday")),
+                      DropdownMenuItem(
+                          value: "Wednesday", child: Text("Wednesday")),
+                      DropdownMenuItem(
+                          value: "Thursday", child: Text("Thursday")),
+                      DropdownMenuItem(value: "Friday", child: Text("Friday")),
+                      DropdownMenuItem(value: "Saturday", child: Text("Saturday")),
+                      DropdownMenuItem(value: "Sunday", child: Text("Sunday")),
+                    ],
+                    onChanged: (v) => setState(() => _weekday = v ?? ''),
+                    decoration: const InputDecoration(
+                      labelText: "Select Weekday",
+                      border: OutlineInputBorder(),
+                    ),
+                    validator: (v) =>
+                    _isRecurring && (v == null || v.isEmpty)
+                        ? 'Select a weekday'
+                        : null,
+                  ),
+                const SizedBox(height: 12),
+
+                // Reason
+                TextFormField(
+                  initialValue: _reason,
+                  decoration: const InputDecoration(
+                    labelText: "Reason",
+                    prefixIcon: Icon(Icons.note),
+                    border: OutlineInputBorder(),
+                  ),
+                  onSaved: (val) => _reason = val,
+                ),
+                const SizedBox(height: 16),
+
+                // Save Button
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    icon: const Icon(Icons.save),
+                    label: const Text("Save"),
+                    onPressed: () {
+                      if (!_formKey.currentState!.validate()) return;
+
+                      if (!_isRecurring && _offDate == null) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text("Pick an off date")),
+                        );
+                        return;
+                      }
+
+                      _formKey.currentState?.save();
+
+                      final weekOff = WeekOff(
+                        id: widget.weekOff?.id ?? 0,
+                        userId: _userId!,
+                        assignBy: widget.weekOff?.assignBy ?? 0,
+                        organizationId:
+                        widget.weekOff?.organizationId ?? 0,
+                        offDate: _isRecurring ? null : _offDate, // nullable if recurring
+                        weekday: _isRecurring ? (_weekday ?? '') : '',
+                        isRecurring: _isRecurring,
+                        reason: _reason,
+                        createdAt: widget.weekOff?.createdAt ?? DateTime.now(),
+                        updatedAt: DateTime.now(),
+                        userName: widget.weekOff?.userName ?? '',
+                      );
+
+                      Navigator.pop(context, weekOff);
+                    },
+                  ),
+                ),
+                const SizedBox(height: 12),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+    // return Material(
+    //   borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+    //   clipBehavior: Clip.antiAlias,
+    //   child: Padding(
+    //     padding: EdgeInsets.only(
+    //       bottom: MediaQuery.of(context).viewInsets.bottom,
+    //       left: 16,
+    //       right: 16,
+    //       top: 16,
+    //     ),
+    //     child: SingleChildScrollView(
+    //       child: Form(
+    //         key: _formKey,
+    //         child: Column(
+    //           mainAxisSize: MainAxisSize.min,
+    //           children: [
+    //             Container(
+    //               height: 4,
+    //               width: 60,
+    //               decoration: BoxDecoration(
+    //                   color: Colors.grey[300],
+    //                   borderRadius: BorderRadius.circular(2)),
+    //             ),
+    //             const SizedBox(height: 12),
+    //             Text(
+    //               widget.weekOff == null ? 'Add Week Off' : 'Edit Week Off',
+    //               style: const TextStyle(
+    //                   fontWeight: FontWeight.bold, fontSize: 16),
+    //             ),
+    //             const SizedBox(height: 12),
+    //
+    //             // User Dropdown
+    //             DropdownButtonFormField<int>(
+    //               value: _userId,
+    //               items: usersProv.items.map((u) {
+    //                 final title = u.name.isNotEmpty
+    //                     ? u.name
+    //                     : (u.email ?? 'User ${u.id}');
+    //                 return DropdownMenuItem<int>(
+    //                   value: u.id,
+    //                   child: Text(title),
+    //                 );
+    //               }).toList(),
+    //               onChanged: (v) => setState(() => _userId = v),
+    //               decoration: const InputDecoration(
+    //                 labelText: 'User',
+    //                 border: OutlineInputBorder(),
+    //               ),
+    //               validator: (v) => v == null ? 'Select a user' : null,
+    //             ),
+    //             const SizedBox(height: 12),
+    //
+    //             // Date Picker
+    //             ListTile(
+    //               contentPadding: EdgeInsets.zero,
+    //               leading: const Icon(Icons.date_range),
+    //               title: Text(
+    //                 _offDate != null
+    //                     ? "${_offDate!.day.toString().padLeft(2, '0')}-${_offDate!.month.toString().padLeft(2, '0')}-${_offDate!.year}"
+    //                     : "Pick Off Date",
+    //               ),
+    //               onTap: () async {
+    //                 final picked = await showDatePicker(
+    //                   context: context,
+    //                   initialDate: _offDate ?? DateTime.now(),
+    //                   firstDate: DateTime(2020),
+    //                   lastDate: DateTime(2100),
+    //                 );
+    //                 if (picked != null) {
+    //                   setState(() => _offDate = picked);
+    //                 }
+    //               },
+    //             ),
+    //             const SizedBox(height: 12),
+    //
+    //             // Recurring
+    //             SwitchListTile(
+    //               title: const Text("Recurring weekly"),
+    //               value: _isRecurring,
+    //               onChanged: (val) => setState(() => _isRecurring = val),
+    //             ),
+    //
+    //             // Weekday dropdown
+    //             if (_isRecurring)
+    //               DropdownButtonFormField<String>(
+    //                 value: _weekday,
+    //                 items: const [
+    //                   DropdownMenuItem(value: "Monday", child: Text("Monday")),
+    //                   DropdownMenuItem(value: "Tuesday", child: Text("Tuesday")),
+    //                   DropdownMenuItem(
+    //                       value: "Wednesday", child: Text("Wednesday")),
+    //                   DropdownMenuItem(
+    //                       value: "Thursday", child: Text("Thursday")),
+    //                   DropdownMenuItem(value: "Friday", child: Text("Friday")),
+    //                   DropdownMenuItem(value: "Saturday", child: Text("Saturday")),
+    //                   DropdownMenuItem(value: "Sunday", child: Text("Sunday")),
+    //                 ],
+    //                 onChanged: (v) => setState(() => _weekday = v ?? ''),
+    //                 decoration: const InputDecoration(
+    //                   labelText: "Select Weekday",
+    //                   border: OutlineInputBorder(),
+    //                 ),
+    //                 validator: (v) =>
+    //                 v == null || v.isEmpty ? 'Select a weekday' : null,
+    //               ),
+    //             const SizedBox(height: 12),
+    //
+    //             // Reason
+    //             TextFormField(
+    //               initialValue: _reason,
+    //               decoration: const InputDecoration(
+    //                 labelText: "Reason",
+    //                 prefixIcon: Icon(Icons.note),
+    //                 border: OutlineInputBorder(),
+    //               ),
+    //               onSaved: (val) => _reason = val,
+    //             ),
+    //             const SizedBox(height: 16),
+    //
+    //             SizedBox(
+    //               width: double.infinity,
+    //               child: ElevatedButton.icon(
+    //                 icon: const Icon(Icons.save),
+    //                 label: const Text("Save"),
+    //                 onPressed: () {
+    //                   if (!_formKey.currentState!.validate()) return;
+    //                   if (_offDate == null) {
+    //                     ScaffoldMessenger.of(context).showSnackBar(
+    //                       const SnackBar(content: Text("Pick a date")),
+    //                     );
+    //                     return;
+    //                   }
+    //                   _formKey.currentState?.save();
+    //
+    //                   final weekOff = WeekOff(
+    //                     id: widget.weekOff?.id ?? 0,
+    //                     userId: _userId!,
+    //                     assignBy: widget.weekOff?.assignBy ?? 0,
+    //                     organizationId:
+    //                     widget.weekOff?.organizationId ?? 0,
+    //                     offDate: _offDate!,
+    //                     weekday: _isRecurring ? (_weekday ?? '') : '',
+    //                     isRecurring: _isRecurring,
+    //                     reason: _reason,
+    //                     createdAt: widget.weekOff?.createdAt ?? DateTime.now(),
+    //                     updatedAt: DateTime.now(),
+    //                     userName: widget.weekOff?.userName ?? '',
+    //                   );
+    //
+    //                   Navigator.pop(context, weekOff);
+    //                 },
+    //               ),
+    //             ),
+    //             const SizedBox(height: 12),
+    //           ],
+    //         ),
+    //       ),
+    //     ),
+    //   ),
+    // );
+  }
 }

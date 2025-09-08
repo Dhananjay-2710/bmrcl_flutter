@@ -31,6 +31,16 @@ class ShiftAssignProvider extends ChangeNotifier {
     }
   }
 
+  Future<bool> bulkCreate(String token, AssignBulkShiftInput input) async {
+    try {
+      final ok = await svc.bulkCreate(token, input);
+      if (ok) await fetchAll(token);
+      return ok;
+    } catch (e) {
+      error = e.toString(); notifyListeners(); return false;
+    }
+  }
+
   Future<bool> update(String token, int id, AssignShiftInput input) async {
     try {
       final ok = await svc.update(token, id, input);

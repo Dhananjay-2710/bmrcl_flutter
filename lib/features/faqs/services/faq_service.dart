@@ -5,7 +5,6 @@ import '../models/faq.dart';
 
 class FaqService {
   static Future<List<Faq>> fetchFaqs(String token) async {
-    // If your endpoint is /faq (based on your sample), set it in ApiConstants.faqEndpoint
     final url = Uri.parse('${ApiConstants.baseUrl}${ApiConstants.faqEndpoint}');
 
     final res = await http.get(
@@ -17,12 +16,16 @@ class FaqService {
     );
 
     if (res.statusCode == 200) {
-      final map = jsonDecode(res.body) as Map<String, dynamic>;
-      // Your JSON has the list under "faq"
-      final list = (map['faq'] as List?) ?? [];
-      return list.map((e) => Faq.fromJson(e as Map<String, dynamic>)).toList();
+      final Map<String, dynamic> map = jsonDecode(res.body);
+
+      if (map['status'] == "true" && map['faq'] != null) {
+        final list = map['faq'] as List<dynamic>;
+        return list.map((e) => Faq.fromJson(e as Map<String, dynamic>)).toList();
+      } else {
+        throw Exception(map['message'] ?? "Invalid response");
+      }
     } else {
-      throw Exception('Failed to load FAQs: ${res.body}');
+      throw Exception('Failed to load FAQs: ${res.statusCode} → ${res.body}');
     }
   }
 }

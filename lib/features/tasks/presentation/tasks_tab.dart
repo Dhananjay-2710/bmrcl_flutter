@@ -33,6 +33,7 @@ class _TasksTabState extends State<TasksTab> with SingleTickerProviderStateMixin
     _initialLoaded = true;
 
     final auth = context.read<AuthProvider>();
+    final user = auth.user;
     final token = auth.token;
     if (token == null) return;
 
@@ -55,10 +56,16 @@ class _TasksTabState extends State<TasksTab> with SingleTickerProviderStateMixin
   }
 
   void _openAssignTaskForm() {
-    // Navigate to your "Assign Task" form screen
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => AddTaskForm(tabController: _tabController)),
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true, // full height when keyboard opens
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (_) => FractionallySizedBox(
+        heightFactor: 0.9, // take 90% of screen height
+        child: AddTaskForm(tabController: _tabController),
+      ),
     );
   }
 
@@ -109,6 +116,7 @@ class _TasksTabState extends State<TasksTab> with SingleTickerProviderStateMixin
       ),
       floatingActionButton: _tabController.index == 0
           ? FloatingActionButton(
+        heroTag: 'Task Tab',
         onPressed: _openAssignTaskForm,
         child: const Icon(Icons.add),
       )
@@ -158,6 +166,8 @@ class _TasksTabState extends State<TasksTab> with SingleTickerProviderStateMixin
   }
 
   Widget _taskTile(Task t) {
+    final auth = context.read<AuthProvider>();
+    final user = auth.user;
     final due = t.dueDateTime;
     final dueText = due != null
         ? '${due.year}-${due.month.toString().padLeft(2, '0')}-${due.day.toString().padLeft(2, '0')} ${due.hour.toString().padLeft(2, '0')}:${due.minute.toString().padLeft(2, '0')}'
@@ -177,7 +187,10 @@ class _TasksTabState extends State<TasksTab> with SingleTickerProviderStateMixin
             const SizedBox(height: 2),
             Text('Device: ${t.assignDeviceSerialNumber}'),
             const SizedBox(height: 2),
-            Text('Assigned to: ${t.assignUserName}'),
+            user?.userId != t.assignUserId
+                ?  Text('Assigned to: ${t.assignUserName}')
+                :  Text('Assigned to: Me'),
+            // Text('Assigned to: ${t.assignUserName}'),
             const SizedBox(height: 2),
             Text('Due: $dueText'),
           ],
