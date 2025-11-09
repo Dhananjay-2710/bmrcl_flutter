@@ -61,4 +61,8 @@ class ShiftAssignProvider extends ChangeNotifier {
       error = e.toString(); notifyListeners(); return false;
     }
   }
+
+  Future<AssignShiftDetail> fetchDetail(String token, int id) {
+    return svc.detail(token, id);
+  }
 }

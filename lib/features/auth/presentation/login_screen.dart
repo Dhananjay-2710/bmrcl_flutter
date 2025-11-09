@@ -7,6 +7,7 @@ import '../providers/auth_provider.dart';
 import '../services/auth_exceptions.dart';
 import 'email_verification_screen.dart';
 import 'forgot_password_screen.dart';
+import '../../../shared/utils/app_snackbar.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -29,6 +30,29 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _isLoading = false;
   bool _hidePassword = true;
   bool _rememberMe = true;
+
+  @override
+  void initState() {
+    super.initState();
+    // Load saved email if available
+    _loadSavedEmail();
+  }
+
+  Future<void> _loadSavedEmail() async {
+    final savedEmail = await StorageService.getSavedEmail();
+    if (savedEmail != null && savedEmail.isNotEmpty && mounted) {
+      setState(() {
+        _email.text = savedEmail;
+      });
+    }
+    // Load remember me preference
+    final rememberMe = await StorageService.getRememberMe();
+    if (mounted) {
+      setState(() {
+        _rememberMe = rememberMe;
+      });
+    }
+  }
 
   @override
   void dispose() {
@@ -55,16 +79,14 @@ class _LoginScreenState extends State<LoginScreen> {
       final ok = await authProvider.login(
         _email.text.trim(),
         _password.text.trim(),
+        rememberMe: _rememberMe,
       );
 
       if (!mounted) return;
 
       if (ok) {
-        if (_rememberMe && authProvider.token != null) {
-          await StorageService.saveToken(authProvider.token!);
-        }
-        Navigator.pushReplacement(
-          context,
+        // Navigate to dashboard - AuthGate will handle routing on subsequent app starts
+        Navigator.of(context, rootNavigator: true).pushReplacement(
           MaterialPageRoute(builder: (_) => const DashboardScreen()),
         );
       }
@@ -90,9 +112,7 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   void _toast(String msg) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(msg), behavior: SnackBarBehavior.floating),
-    );
+    AppSnackBar.error(context, msg);
   }
 
   String? _validateEmail(String? v) {
@@ -340,7 +360,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             Text('© 2025 Frog8. All rights reserved.',
                                 style: TextStyle(fontSize: 12, color: Colors.grey)),
                             SizedBox(height: 4),
-                            Text('Version 1.0.1', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                            Text('Version 1.0.2', style: TextStyle(fontSize: 12, color: Colors.grey)),
                           ],
                         ),
                       ),

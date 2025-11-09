@@ -8,10 +8,29 @@ import '../../auth/models/user.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../models/task.dart';
 import '../providers/tasks_provider.dart';
+import '../../../shared/utils/app_snackbar.dart';
+
+enum TaskSnackType { info, success, error }
 
 class TaskDetailsScreen extends StatelessWidget {
   final int taskId;
   const TaskDetailsScreen({super.key, required this.taskId});
+
+  void _showSnack(BuildContext context, String message,
+      {TaskSnackType type = TaskSnackType.info}) {
+    switch (type) {
+      case TaskSnackType.success:
+        AppSnackBar.success(context, message);
+        break;
+      case TaskSnackType.error:
+        AppSnackBar.error(context, message);
+        break;
+      case TaskSnackType.info:
+      default:
+        AppSnackBar.info(context, message);
+        break;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -23,16 +42,37 @@ class TaskDetailsScreen extends StatelessWidget {
       create: (_) => TasksProvider()..loadTask(token, taskId),
       child: Consumer<TasksProvider>(
         builder: (context, prov, _) {
-          if (prov.loading) return const Scaffold(body: Center(child: CircularProgressIndicator()));
-          if (prov.error != null) return Scaffold(body: Center(child: Text(prov.error!)));
+          if (prov.loading) {
+            return Scaffold(
+              appBar: AppBar(
+                title: const Text('Task Details'),
+                backgroundColor: const Color(0xFFA7D222),
+                foregroundColor: Colors.white,
+              ),
+              body: const Center(child: CircularProgressIndicator()),
+            );
+          }
+
+          if (prov.error != null) {
+            return Scaffold(
+              appBar: AppBar(
+                title: const Text('Task Details'),
+                backgroundColor: const Color(0xFFA7D222),
+                foregroundColor: Colors.white,
+              ),
+              body: Center(child: Text(prov.error!)),
+            );
+          }
 
           final task = prov.task!;
           return Scaffold(
             appBar: AppBar(
-              title: Text('Task Details'),
+              title: const Text('Task Details'),
+              backgroundColor: const Color(0xFFA7D222),
+              foregroundColor: Colors.white,
             ),
             body: Padding(
-              padding: const EdgeInsets.all(8),
+              padding: const EdgeInsets.all(16),
               child: SingleChildScrollView(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -43,7 +83,7 @@ class TaskDetailsScreen extends StatelessWidget {
                       ),
                       elevation: 4,
                       child: Padding(
-                        padding: const EdgeInsets.all(8),
+                        padding: const EdgeInsets.all(16),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
@@ -73,7 +113,9 @@ class TaskDetailsScreen extends StatelessWidget {
                               children: [
                                 const Text(
                                   "Priority: ",
-                                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+                                  style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w500),
                                 ),
                                 Text(
                                   task.priority,
@@ -87,10 +129,14 @@ class TaskDetailsScreen extends StatelessWidget {
                             ),
                             const SizedBox(height: 8),
 
-                            // Due Date
-                            _infoRow("Due", task.dueDateTime.toString()),
+                            // Dates
+                            _infoRow("Due", task.formattedDueDate ?? 'No due date'),
+                            _infoRow("Assigned Time",
+                                task.formattedAssignedTime ?? 'Not available'),
+                            _infoRow("Completion Time",
+                                task.formattedCompletionTime ?? 'Not available'),
 
-                            const SizedBox(height: 8),
+                            const SizedBox(height: 16),
 
                             // Task Image
                             Column(
@@ -98,7 +144,9 @@ class TaskDetailsScreen extends StatelessWidget {
                               children: [
                                 const Text(
                                   "Task Image",
-                                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+                                  style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w500),
                                 ),
                                 const SizedBox(height: 8),
                                 ClipRRect(
@@ -106,21 +154,23 @@ class TaskDetailsScreen extends StatelessWidget {
                                   child: SizedBox(
                                     height: 200,
                                     width: double.infinity,
-                                    child: task.taskImageURL != null && task.taskImageURL!.isNotEmpty
+                                    child: task.taskImageURL != null &&
+                                            task.taskImageURL!.isNotEmpty
                                         ? Image.network(
-                                      task.taskImageURL!,
-                                      fit: BoxFit.cover,
-                                      errorBuilder: (context, error, stackTrace) {
-                                        return Image.asset(
-                                          'assets/images/dummy_image.jpg',
-                                          fit: BoxFit.cover,
-                                        );
-                                      },
-                                    )
+                                            task.taskImageURL!,
+                                            fit: BoxFit.cover,
+                                            errorBuilder:
+                                                (context, error, stackTrace) {
+                                              return Image.asset(
+                                                'assets/images/dummy_image.jpg',
+                                                fit: BoxFit.cover,
+                                              );
+                                            },
+                                          )
                                         : Image.asset(
-                                      'assets/images/dummy_image.jpg',
-                                      fit: BoxFit.cover,
-                                    ),
+                                            'assets/images/dummy_image.jpg',
+                                            fit: BoxFit.cover,
+                                          ),
                                   ),
                                 ),
                               ],
@@ -129,7 +179,8 @@ class TaskDetailsScreen extends StatelessWidget {
                             const SizedBox(height: 8),
 
                             // Custom Task Action Buttons
-                            _taskActionButtons(context, task, user!, prov, token),
+                            _taskActionButtons(
+                                context, task, user!, prov, token),
                           ],
                         ),
                       ),
@@ -143,6 +194,7 @@ class TaskDetailsScreen extends StatelessWidget {
       ),
     );
   }
+
   Widget _infoRow(String label, String value) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8.0),
@@ -160,8 +212,7 @@ class TaskDetailsScreen extends StatelessWidget {
             child: Text(
               value,
               style: const TextStyle(fontSize: 16),
-              overflow: TextOverflow.ellipsis,
-              maxLines: 2,
+              softWrap: true,
             ),
           ),
         ],
@@ -170,12 +221,12 @@ class TaskDetailsScreen extends StatelessWidget {
   }
 
   Widget _taskActionButtons(
-      BuildContext context,
-      Task task,
-      User user,
-      TasksProvider prov,
-      String token,
-      ) {
+    BuildContext context,
+    Task task,
+    User user,
+    TasksProvider prov,
+    String token,
+  ) {
     final status = task.status.toLowerCase();
 
     if (status == 'pending' && user.userId == task.assignUserId) {
@@ -189,32 +240,49 @@ class TaskDetailsScreen extends StatelessWidget {
                 context: context,
                 builder: (_) => AlertDialog(
                   title: const Text('Start Task'),
-                  content: const Text('Are you sure you want to start this task?'),
+                  content:
+                      const Text('Are you sure you want to start this task?'),
                   actions: [
-                    TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
-                    TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('Start')),
+                    ElevatedButton(
+                      onPressed: () => Navigator.pop(context, false),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.grey,
+                        foregroundColor: Colors.white,
+                      ),
+                      child: const Text('Cancel'),
+                    ),
+                    ElevatedButton(
+                      onPressed: () => Navigator.pop(context, true),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.green,
+                        foregroundColor: Colors.white,
+                      ),
+                      child: const Text('Start'),
+                    ),
                   ],
                 ),
               );
               if (confirm == true) {
                 final success = await prov.startTask(token, task.id);
                 if (success) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Task started successfully')),
-                  );
+                  _showSnack(context, 'Task started successfully',
+                      type: TaskSnackType.success);
                   Navigator.pop(context, true); // refresh
                 } else {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text(prov.error ?? 'Failed to start task')),
+                  _showSnack(
+                    context,
+                    prov.error ?? 'Failed to start task',
+                    type: TaskSnackType.error,
                   );
                 }
               }
             },
-            icon: const Icon(Icons.play_arrow),
-            label: const Text('Start Task'),
+            icon: const Icon(Icons.play_arrow, color: Colors.white),
+            label:
+                const Text('Start Task', style: TextStyle(color: Colors.white)),
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.white,
-              side: const BorderSide(color: Colors.green),
+              backgroundColor: Colors.green,
+              foregroundColor: Colors.white,
             ),
           ),
 
@@ -222,13 +290,13 @@ class TaskDetailsScreen extends StatelessWidget {
           // if (user.role == 'super_admin' || user.role == 'Admin')
           // OutlinedButton.icon(
           //   onPressed: () {
-              // TODO: Navigate to edit form
-              // Navigator.push(
-                // context,
-                // MaterialPageRoute(
-                  // builder: (_) => EditTaskForm(task: task),
-                // ),
-              // );
+          // TODO: Navigate to edit form
+          // Navigator.push(
+          // context,
+          // MaterialPageRoute(
+          // builder: (_) => EditTaskForm(task: task),
+          // ),
+          // );
           //   },
           //   icon: const Icon(Icons.edit, color: Colors.blue),
           //   label: const Text('Edit'),
@@ -236,39 +304,43 @@ class TaskDetailsScreen extends StatelessWidget {
 
           // ❌ Delete
           if (user.role == 'super_admin' || user.role == 'Admin')
-          OutlinedButton.icon(
-            onPressed: () async {
-              final confirm = await showDialog<bool>(
-                context: context,
-                builder: (_) => AlertDialog(
-                  title: const Text('Delete Task'),
-                  content: const Text('Are you sure you want to delete this task?'),
-                  actions: [
-                    TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
-                    TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('Delete')),
-                  ],
-                ),
-              );
+            OutlinedButton.icon(
+              onPressed: () async {
+                final confirm = await showDialog<bool>(
+                  context: context,
+                  builder: (_) => AlertDialog(
+                    title: const Text('Delete Task'),
+                    content: const Text(
+                        'Are you sure you want to delete this task?'),
+                    actions: [
+                      TextButton(
+                          onPressed: () => Navigator.pop(context, false),
+                          child: const Text('Cancel')),
+                      TextButton(
+                          onPressed: () => Navigator.pop(context, true),
+                          child: const Text('Delete')),
+                    ],
+                  ),
+                );
 
-              if (confirm == true) {
-                final success = await prov.deleteTask(token, task.id);
-                if (success) {
-                  Navigator.pop(context, true); // refresh
-                } else {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Failed to delete task')),
-                  );
+                if (confirm == true) {
+                  final success = await prov.deleteTask(token, task.id);
+                  if (success) {
+                    Navigator.pop(context, true); // refresh
+                  } else {
+                    _showSnack(context, 'Failed to delete task',
+                        type: TaskSnackType.error);
+                  }
                 }
-              }
-            },
-            icon: const Icon(Icons.delete, color: Colors.red),
-            label: const Text('Delete'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.white,
-              foregroundColor: Colors.red,
-              side: const BorderSide(color: Colors.red),
+              },
+              icon: const Icon(Icons.delete, color: Colors.red),
+              label: const Text('Delete'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.white,
+                foregroundColor: Colors.red,
+                side: const BorderSide(color: Colors.red),
+              ),
             ),
-          ),
         ],
       );
     }
@@ -283,9 +355,7 @@ class TaskDetailsScreen extends StatelessWidget {
               .pickCompressedImage(source: ImageSource.camera);
 
           if (photo == null) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('No photo captured')),
-            );
+            _showSnack(context, 'No photo captured', type: TaskSnackType.info);
             return;
           }
 
@@ -296,23 +366,26 @@ class TaskDetailsScreen extends StatelessWidget {
           if (!confirm) return;
 
           // Step 3: API Call
-          final success = await prov.completeTask(token, task.id, taskImage: image);
+          final success =
+              await prov.completeTask(token, task.id, taskImage: image);
           if (success) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Task completed successfully')),
-            );
+            _showSnack(context, 'Task completed successfully',
+                type: TaskSnackType.success);
             Navigator.pop(context, true);
           } else {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text(prov.error ?? 'Failed to complete task')),
+            _showSnack(
+              context,
+              prov.error ?? 'Failed to complete task',
+              type: TaskSnackType.error,
             );
           }
         },
-        icon: const Icon(Icons.check_circle),
-        label: const Text('Complete Task'),
+        icon: const Icon(Icons.check_circle, color: Colors.white),
+        label:
+            const Text('Complete Task', style: TextStyle(color: Colors.white)),
         style: ElevatedButton.styleFrom(
-          backgroundColor: Colors.white,
-          side: const BorderSide(color: Colors.green),
+          backgroundColor: Colors.green,
+          foregroundColor: Colors.white,
         ),
       );
     }
@@ -335,31 +408,43 @@ class TaskDetailsScreen extends StatelessWidget {
     }
   }
 
-  Future<bool> _showImagePreviewAndConfirm(BuildContext context,File image) async {
+  Future<bool> _showImagePreviewAndConfirm(
+      BuildContext context, File image) async {
     return await showDialog<bool>(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('Task Preview'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Image.file(image, height: 200),
-            const SizedBox(height: 12),
-            const Text('Are you sure you want to complete this task?'),
-          ],
-        ),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: const Text('Cancel')),
-          TextButton(
-              onPressed: () => Navigator.pop(context, true),
-              child: const Text('Complete')),
-        ],
-      ),
-    ) ??
+          context: context,
+          builder: (_) => AlertDialog(
+            title: const Text('Task Preview'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Image.file(image, height: 200),
+                const SizedBox(height: 12),
+                const Text('Are you sure you want to complete this task?'),
+              ],
+            ),
+            actions: [
+              ElevatedButton(
+                onPressed: () => Navigator.pop(context, false),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.grey,
+                  foregroundColor: Colors.white,
+                ),
+                child: const Text('Cancel'),
+              ),
+              ElevatedButton(
+                onPressed: () => Navigator.pop(context, true),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.green,
+                  foregroundColor: Colors.white,
+                ),
+                child: const Text('Complete'),
+              ),
+            ],
+          ),
+        ) ??
         false;
   }
+
   Color _statusColor(String s) {
     switch (s.toLowerCase()) {
       case 'completed':

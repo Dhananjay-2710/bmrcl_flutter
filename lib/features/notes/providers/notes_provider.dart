@@ -3,6 +3,9 @@ import '../models/note.dart';
 import '../services/notes_service.dart';
 
 class NotesProvider extends ChangeNotifier {
+  final NotesService service;
+  NotesProvider(this.service);
+
   List<Note> items = [];
   bool loading = false;
   bool creating = false;
@@ -13,7 +16,7 @@ class NotesProvider extends ChangeNotifier {
     error = null;
     notifyListeners();
     try {
-      items = await NotesService.listNotes(token);
+      items = await service.listNotes(token);
     } catch (e) {
       error = e.toString();
     } finally {
@@ -26,7 +29,7 @@ class NotesProvider extends ChangeNotifier {
     creating = true;
     notifyListeners();
     try {
-      final ok = await NotesService.createNote(token, title, content);
+      final ok = await service.createNote(token, title, content);
       creating = false;
 
       if (ok) {
@@ -45,7 +48,7 @@ class NotesProvider extends ChangeNotifier {
 
   Future<bool> update(String token, int id, String title, String content) async {
     try {
-      final ok = await NotesService.updateNote(token, id, title, content);
+      final ok = await service.updateNote(token, id, title, content);
       creating = false;
 
       if (ok) {
@@ -64,7 +67,7 @@ class NotesProvider extends ChangeNotifier {
 
   Future<bool> delete(String token, int id) async {
     try {
-      final ok = await NotesService.deleteNote(token, id);
+      final ok = await service.deleteNote(token, id);
       if (ok) {
         items.removeWhere((n) => n.id == id);
         await fetchNotes(token);

@@ -32,17 +32,27 @@ class NotificationsService {
   }) async {
     try {
       final endpoint = ApiConstants.notificationsList;
-      final res = await api.get(endpoint, token: token);
-      print("Print ${res.body} ${res.statusCode}");
+      final query = {'page': page.toString()};
+      final res = await api.get(
+        endpoint,
+        token: token,
+        query: query,
+        retryOn401: true,
+        retryOn5xx: true,
+      );
+      
       if (res.statusCode == 200) {
         final body = res.body.isEmpty ? '{}' : res.body;
         final map = jsonDecode(body);
+        
         if (map is Map<String, dynamic>) {
           return PaginatedNotifications.fromMap(map);
         }
-        throw const FormatException('Unexpected JSON format.');
+        throw const FormatException('Unexpected JSON format - expected Map.');
       }
       _throwForStatus(res.statusCode, res.body);
+    } on FormatException catch (e) {
+      throw Exception('Failed to parse response: $e');
     } on SocketException catch (e) {
       throw AuthException(AuthErrorCode.network, 'Network/DNS error: ${e.message}');
     } on TimeoutException {
@@ -53,8 +63,12 @@ class NotificationsService {
   /// GET /notifications/unread
   Future<List<AppNotification>> unread({required String token}) async {
     try {
-      final res = await api.get(ApiConstants.notificationsUnread, token: token);
-      print("Notification Status : ${res.body}");
+      final res = await api.get(
+        ApiConstants.notificationsUnread,
+        token: token,
+        retryOn401: true,
+        retryOn5xx: true,
+      );
       if (res.statusCode == 200) {
         final body = res.body.isEmpty ? '{}' : res.body;
         final map = jsonDecode(body);
@@ -77,7 +91,11 @@ class NotificationsService {
   /// POST /notifications/read/{id}
   Future<void> markRead({required String token, required String id}) async {
     try {
-      final res = await api.post('${ApiConstants.notificationsRead}/$id', token: token);
+      final res = await api.post(
+        '${ApiConstants.notificationsRead}/$id',
+        token: token,
+        retryOn401: true,
+      );
 
       if (res.statusCode == 200) return;
       _throwForStatus(res.statusCode, res.body);
@@ -91,7 +109,11 @@ class NotificationsService {
   /// POST /notifications/read-all
   Future<void> markAllRead({required String token}) async {
     try {
-      final res = await api.post(ApiConstants.notificationsReadAll, token: token);
+      final res = await api.post(
+        ApiConstants.notificationsReadAll,
+        token: token,
+        retryOn401: true,
+      );
 
       if (res.statusCode == 200) return;
       _throwForStatus(res.statusCode, res.body);

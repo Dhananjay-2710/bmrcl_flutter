@@ -1,18 +1,30 @@
 import 'dart:convert';
-import 'package:http/http.dart' as http;
+import 'package:flutter/foundation.dart';
 
 import '../../../constants/api_constants.dart';
+import '../../../core/api_client.dart';
 
 class AdminService {
-  static Future<Map<String, dynamic>> fetchDashboardData(String token) async {
-    final url = Uri.parse('${ApiConstants.baseUrl}/admin_dashboard');
+  final ApiClient api;
+  AdminService(this.api);
 
-    final res = await http.get(
-      url,
-      headers: {
-        'Authorization': 'Bearer $token',
-        'Accept': 'application/json',
-      },
+  Exception _buildHttpError(int statusCode, String body) {
+    debugPrint('[AdminService] HTTP $statusCode: $body');
+    if (statusCode == 401) {
+      return Exception('Your session expired. Please login again.');
+    }
+    if (statusCode >= 500) {
+      return Exception('We\'re having trouble reaching the server. Please try again later.');
+    }
+    return Exception('We couldn\'t complete that request. Please try again.');
+  }
+
+  Future<Map<String, dynamic>> fetchDashboardData(String token) async {
+    final res = await api.get(
+      ApiConstants.adminDashboard,
+      token: token,
+      retryOn401: true,
+      retryOn5xx: true,
     );
 
     if (res.statusCode == 200) {
@@ -24,8 +36,7 @@ class AdminService {
       final data = jsonDecode(res.body) as Map<String, dynamic>;
       if (data['success'] == true) return data;
       throw Exception('API returned success=false');
-    } else {
-      throw Exception('HTTP ${res.statusCode}: ${res.body}');
     }
+    throw _buildHttpError(res.statusCode, res.body);
   }
 }

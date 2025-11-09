@@ -10,6 +10,7 @@ class WeekOff {
   final DateTime createdAt;
   final DateTime updatedAt;
   final String userName;
+  final String? userProfileImageUrl;
 
   WeekOff({
     required this.id,
@@ -23,6 +24,7 @@ class WeekOff {
     required this.createdAt,
     required this.updatedAt,
     required this.userName,
+    this.userProfileImageUrl,
   });
 
   factory WeekOff.fromJson(Map<String, dynamic> json) {
@@ -40,6 +42,7 @@ class WeekOff {
       createdAt: DateTime.parse(json['created_at']),
       updatedAt: DateTime.parse(json['updated_at']),
       userName: json['userName'] ?? '',
+      userProfileImageUrl: json['userProfileImageUrl'] as String?,
     );
   }
 
@@ -90,6 +93,7 @@ class WeekOff {
       createdAt: createdAt,
       updatedAt: DateTime.now(),
       userName: userName,
+      userProfileImageUrl: userProfileImageUrl,
     );
   }
 }

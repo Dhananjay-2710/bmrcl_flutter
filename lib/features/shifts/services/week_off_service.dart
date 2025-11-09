@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 
 import '../../../core/api_client.dart';
 import '../../../constants/api_constants.dart';
@@ -10,11 +11,18 @@ class WeekOffService {
   final ApiClient api;
   WeekOffService(this.api);
 
-  Never _throwForStatus(int code, String body) {
-    if (code == 401) throw Exception('Unauthorized. Please login again.');
-    if (code == 404) throw Exception('Endpoint not found (404).');
-    if (code >= 500) throw Exception('Server error ($code).');
-    throw Exception('HTTP $code: $body');
+  Exception _buildHttpError(int code, String body, String context) {
+    debugPrint('[$context] HTTP $code: $body');
+    if (code == 401) {
+      return Exception('Your session expired. Please login again.');
+    }
+    if (code == 404) {
+      return Exception('We couldn\'t find that resource (404).');
+    }
+    if (code >= 500) {
+      return Exception('We\'re having trouble reaching the server. Please try again later.');
+    }
+    return Exception('We couldn\'t complete that request. Please try again.');
   }
 
   /// Fetch list of week offs
@@ -24,8 +32,9 @@ class WeekOffService {
       final res = await api.get(
         ApiConstants.weekOffListEndpoint,
         token: token,
+        retryOn401: true,
+        retryOn5xx: true,
       );
-      print('Week Off -> ${res.statusCode}\n${res.body}');
 
       if (res.statusCode == 200) {
         final map = jsonDecode(res.body);
@@ -45,7 +54,7 @@ class WeekOffService {
         return dataList.map((e) => WeekOff.fromJson(e)).toList();
       }
 
-      _throwForStatus(res.statusCode, res.body);
+      throw _buildHttpError(res.statusCode, res.body, 'WeekOffService.fetchWeekOffs');
     } on SocketException catch (e) {
       throw Exception('Network/DNS error: ${e.message}');
     } on TimeoutException {
@@ -61,6 +70,7 @@ class WeekOffService {
         ApiConstants.weekOffCreateEndpoint,
         body: jsonEncode(input.toJson()),
         token: token,
+        retryOn401: true,
       );
 
       if (res.statusCode == 200 || res.statusCode == 201) {
@@ -71,7 +81,7 @@ class WeekOffService {
         return WeekOff.fromJson(map['data']);
       }
 
-      _throwForStatus(res.statusCode, res.body);
+      throw _buildHttpError(res.statusCode, res.body, 'WeekOffService.createWeekOff');
     } on SocketException catch (e) {
       throw Exception('Network/DNS error: ${e.message}');
     } on TimeoutException {
@@ -88,6 +98,7 @@ class WeekOffService {
         '${ApiConstants.weekOffEndpoint}/update/${weekOff.id}',
         token: token,
         body: jsonEncode(weekOff.toJson()),
+        retryOn401: true,
         // body: weekOff.toJson(),
       );
 
@@ -102,7 +113,7 @@ class WeekOffService {
         return WeekOff.fromJson(map['data']);
       }
 
-      _throwForStatus(res.statusCode, res.body);
+      throw _buildHttpError(res.statusCode, res.body, 'WeekOffService.updateWeekOff');
     } on SocketException catch (e) {
       throw Exception('Network/DNS error: ${e.message}');
     } on TimeoutException {
@@ -118,6 +129,7 @@ class WeekOffService {
       final res = await api.delete(
         '${ApiConstants.weekOffEndpoint}/delete/$id',
         token: token,
+        retryOn401: true,
       );
 
       if (res.statusCode == 200) {
@@ -131,7 +143,7 @@ class WeekOffService {
         return;
       }
 
-      _throwForStatus(res.statusCode, res.body);
+      throw _buildHttpError(res.statusCode, res.body, 'WeekOffService.deleteWeekOff');
     } on SocketException catch (e) {
       throw Exception('Network/DNS error: ${e.message}');
     } on TimeoutException {

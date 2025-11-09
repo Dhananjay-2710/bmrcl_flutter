@@ -5,6 +5,7 @@ import '../../auth/providers/auth_provider.dart';
 import '../providers/tasks_provider.dart';
 import '../models/task.dart';
 import 'add_task_form.dart';
+import '../../../shared/utils/app_snackbar.dart';
 
 class TasksTab extends StatefulWidget {
   const TasksTab({super.key});
@@ -13,7 +14,8 @@ class TasksTab extends StatefulWidget {
   State<TasksTab> createState() => _TasksTabState();
 }
 
-class _TasksTabState extends State<TasksTab> with SingleTickerProviderStateMixin {
+class _TasksTabState extends State<TasksTab>
+    with SingleTickerProviderStateMixin {
   late TabController _tabController;
   bool _initialLoaded = false;
 
@@ -44,27 +46,28 @@ class _TasksTabState extends State<TasksTab> with SingleTickerProviderStateMixin
   Future<void> _refreshAll() async {
     final auth = context.read<AuthProvider>();
     final token = auth.token;
-    if (token == null) return;
+    if (token == null) {
+      AppSnackBar.error(context, 'Not authenticated');
+      return;
+    }
     await context.read<TasksProvider>().loadAll(token);
   }
 
   Future<void> _refreshMy() async {
     final auth = context.read<AuthProvider>();
     final token = auth.token;
-    if (token == null) return;
+    if (token == null) {
+      AppSnackBar.error(context, 'Not authenticated');
+      return;
+    }
     await context.read<TasksProvider>().loadMy(token);
   }
 
-  void _openAssignTaskForm() {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true, // full height when keyboard opens
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-      ),
-      builder: (_) => FractionallySizedBox(
-        heightFactor: 0.9, // take 90% of screen height
-        child: AddTaskForm(tabController: _tabController),
+  void _openAssignTaskForm() async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => AddTaskForm(tabController: _tabController),
       ),
     );
   }
@@ -116,10 +119,11 @@ class _TasksTabState extends State<TasksTab> with SingleTickerProviderStateMixin
       ),
       floatingActionButton: _tabController.index == 0
           ? FloatingActionButton(
-        heroTag: 'Task Tab',
-        onPressed: _openAssignTaskForm,
-        child: const Icon(Icons.add),
-      )
+              heroTag: 'Task Tab',
+              onPressed: _openAssignTaskForm,
+              backgroundColor: const Color(0xFFA7D222),
+              child: const Icon(Icons.add, color: Colors.white),
+            )
           : null,
     );
   }
@@ -166,78 +170,28 @@ class _TasksTabState extends State<TasksTab> with SingleTickerProviderStateMixin
   }
 
   Widget _taskTile(Task t) {
-    final auth = context.read<AuthProvider>();
-    final user = auth.user;
-    final due = t.dueDateTime;
-    final dueText = due != null
-        ? '${due.year}-${due.month.toString().padLeft(2, '0')}-${due.day.toString().padLeft(2, '0')} ${due.hour.toString().padLeft(2, '0')}:${due.minute.toString().padLeft(2, '0')}'
-        : 'No due date';
-
-    return Card(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      child: ListTile(
-        leading: CircleAvatar(
-          backgroundColor: Colors.blue.shade50,
-          child: Icon(Icons.task, color: _statusColor(t.status)),
-        ),
-        title: Text(t.title),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const SizedBox(height: 2),
-            Text('Device: ${t.assignDeviceSerialNumber}'),
-            const SizedBox(height: 2),
-            user?.userId != t.assignUserId
-                ?  Text('Assigned to: ${t.assignUserName}')
-                :  Text('Assigned to: Me'),
-            // Text('Assigned to: ${t.assignUserName}'),
-            const SizedBox(height: 2),
-            Text('Due: $dueText'),
-          ],
-        ),
-        trailing: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(t.status,
-                style: TextStyle(
-                    color: _statusColor(t.status),
-                    fontWeight: FontWeight.bold)),
-            const SizedBox(height: 6),
-            Container(
-              padding:
-              const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: Colors.grey.shade100,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Text(t.priority,
-                  style: TextStyle(
-                      fontSize: 12, color: _statusColor(t.priority))),
+    return _TaskCardWidget(
+      task: t,
+      onTap: () {
+        final auth = context.read<AuthProvider>();
+        final token = auth.token;
+        if (token != null) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => TaskDetailsScreen(taskId: t.id),
             ),
-          ],
-        ),
-        onTap: () {
-          final auth = context.read<AuthProvider>();
-          final token = auth.token;
-          if (token != null) {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => TaskDetailsScreen(taskId: t.id),
-              ),
-            ).then((deleted) {
-              if (deleted == true) {
-                _refreshAll();
-                _refreshMy();
-              }
-            });
-          } else {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Not authenticated')),
-            );
-          }
-        },
-      ),
+          ).then((deleted) {
+            if (deleted == true) {
+              _refreshAll();
+              _refreshMy();
+            }
+          });
+        } else {
+          AppSnackBar.error(context, 'Not authenticated');
+        }
+      },
+      statusColor: _statusColor,
     );
   }
 
@@ -266,6 +220,246 @@ class _TasksTabState extends State<TasksTab> with SingleTickerProviderStateMixin
   void dispose() {
     _tabController.dispose();
     super.dispose();
+  }
+}
+
+class _TaskCardWidget extends StatefulWidget {
+  final Task task;
+  final VoidCallback onTap;
+  final Color Function(String) statusColor;
+
+  const _TaskCardWidget({
+    required this.task,
+    required this.onTap,
+    required this.statusColor,
+  });
+
+  @override
+  State<_TaskCardWidget> createState() => _TaskCardWidgetState();
+}
+
+class _TaskCardWidgetState extends State<_TaskCardWidget> {
+  bool _showDetails = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final auth = context.read<AuthProvider>();
+    final user = auth.user;
+    final task = widget.task;
+
+    final dueText = task.formattedDueDate ?? 'No due date';
+
+    final statusColor = widget.statusColor(task.status);
+    final priorityColor = widget.statusColor(task.priority);
+
+    return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: InkWell(
+        onTap: widget.onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  // Left: Task Image
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: SizedBox(
+                      width: 40,
+                      height: 40,
+                      child: task.taskImageURL != null &&
+                              task.taskImageURL!.isNotEmpty
+                          ? Image.network(
+                              task.taskImageURL!,
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, __, ___) => Container(
+                                color: Colors.grey.shade200,
+                                child: Icon(Icons.task,
+                                    color: statusColor, size: 24),
+                              ),
+                            )
+                          : Container(
+                              color: Colors.grey.shade200,
+                              child: Icon(Icons.task,
+                                  color: statusColor, size: 24),
+                            ),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  // Center: Task Title, Assigned User, Priority & Status
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        // Row 1: Task Title
+                        Text(
+                          task.title,
+                          style: theme.textTheme.titleSmall?.copyWith(
+                            fontWeight: FontWeight.w700,
+                            fontSize: 13,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 4),
+                        // Row 2: Assigned User
+                        Text(
+                          user?.userId != task.assignUserId
+                              ? 'Assigned to: ${task.assignUserName}'
+                              : 'Assigned to: Me',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: Colors.grey[700],
+                            fontSize: 11,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 4),
+                        // Row 3: Priority and Status
+                        Row(
+                          children: [
+                            // Priority Badge
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: priorityColor.withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Text(
+                                task.priority,
+                                style: TextStyle(
+                                  color: priorityColor,
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 10,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            // Status Badge
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: statusColor.withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Text(
+                                task.status,
+                                style: TextStyle(
+                                  color: statusColor,
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 10,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                  // Right: Arrow (expand/collapse)
+                  IconButton(
+                    icon: Icon(
+                      _showDetails ? Icons.expand_less : Icons.expand_more,
+                      size: 20,
+                      color: Colors.grey[600],
+                    ),
+                    onPressed: () {
+                      setState(() {
+                        _showDetails = !_showDetails;
+                      });
+                    },
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                    tooltip: _showDetails ? 'Hide Details' : 'View Details',
+                  ),
+                ],
+              ),
+              // Expandable Details Section
+              if (_showDetails) ...[
+                const SizedBox(height: 8),
+                const Divider(height: 1),
+                const SizedBox(height: 8),
+                _DetailRow(
+                  icon: Icons.devices_other,
+                  label: 'Device',
+                  value: task.assignDeviceSerialNumber,
+                ),
+                const SizedBox(height: 6),
+                _DetailRow(
+                  icon: Icons.calendar_today,
+                  label: 'Due Date',
+                  value: dueText,
+                ),
+                if (task.description.isNotEmpty) ...[
+                  const SizedBox(height: 6),
+                  _DetailRow(
+                    icon: Icons.description,
+                    label: 'Description',
+                    value: task.description,
+                    maxLines: 2,
+                  ),
+                ],
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _DetailRow extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String value;
+  final int maxLines;
+
+  const _DetailRow({
+    required this.icon,
+    required this.label,
+    required this.value,
+    this.maxLines = 1,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, size: 14, color: Colors.grey[600]),
+        const SizedBox(width: 6),
+        Text(
+          '$label: ',
+          style: theme.textTheme.bodySmall?.copyWith(
+            fontWeight: FontWeight.w600,
+            color: Colors.grey[700],
+            fontSize: 12,
+          ),
+        ),
+        Expanded(
+          child: Text(
+            value,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: Colors.black87,
+              fontSize: 12,
+            ),
+            maxLines: maxLines,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+      ],
+    );
   }
 }
 

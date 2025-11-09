@@ -377,7 +377,7 @@ class GreetingAppBar extends StatelessWidget implements PreferredSizeWidget {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (_) => ProfileScreen(user: auth.user!),
+                  builder: (_) => const ProfileScreen(),
                 ),
               );
             }

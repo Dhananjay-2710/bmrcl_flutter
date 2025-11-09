@@ -1,10 +1,22 @@
 import 'dart:convert';
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import '../../../constants/api_constants.dart';
 import '../models/task.dart';
 
 class TaskService {
+  static Exception _buildHttpError(http.Response res) {
+    debugPrint('[TaskService] HTTP ${res.statusCode}: ${res.body}');
+    if (res.statusCode == 401) {
+      return Exception('Your session expired. Please login again.');
+    }
+    if (res.statusCode >= 500) {
+      return Exception('We\'re having trouble reaching the server. Please try again later.');
+    }
+    return Exception('We couldn\'t complete that request. Please try again.');
+  }
+
   /// GET /tasks/list  -> returns "taskData" (all tasks)
   static Future<List<Task>> fetchAllTasks(String token) async {
     final url = Uri.parse('${ApiConstants.baseUrl}${ApiConstants.allTasks}');
@@ -17,9 +29,8 @@ class TaskService {
       final map = jsonDecode(res.body) as Map<String, dynamic>;
       final list = (map['taskData'] ?? map['taskdata'] ?? []) as List<dynamic>;
       return list.map((e) => Task.fromJson(e as Map<String, dynamic>)).toList();
-    } else {
-      throw Exception('Failed to load all tasks: ${res.body}');
     }
+    throw _buildHttpError(res);
   }
 
   /// GET /tasks/tasklist -> returns "taskdata" (user tasks)
@@ -34,9 +45,8 @@ class TaskService {
       final map = jsonDecode(res.body) as Map<String, dynamic>;
       final list = (map['taskdata'] ?? map['taskData'] ?? []) as List<dynamic>;
       return list.map((e) => Task.fromJson(e as Map<String, dynamic>)).toList();
-    } else {
-      throw Exception('Failed to load my tasks: ${res.body}');
     }
+    throw _buildHttpError(res);
   }
 
   /// Create task: POST /tasks/store
@@ -61,9 +71,8 @@ class TaskService {
       } else {
         throw Exception(map['message'] ?? 'Failed to create task');
       }
-    } else {
-      throw Exception('HTTP ${res.statusCode}: ${res.body}');
     }
+    throw _buildHttpError(res);
   }
 
   // GET Task details
@@ -80,13 +89,14 @@ class TaskService {
       } else {
         throw Exception(map['message'] ?? 'Failed to fetch task');
       }
-    } else if (res.statusCode == 404) {
-      throw Exception('Server error (404)');
-    } else if (res.statusCode == 500) {
-      throw Exception('Server error (500)');
-    } else {
-      throw Exception('HTTP ${res.statusCode}: ${res.body}');
     }
+    if (res.statusCode == 404) {
+      throw Exception('Server error (404)');
+    }
+    if (res.statusCode == 500) {
+      throw Exception('Server error (500)');
+    }
+    throw _buildHttpError(res);
   }
 
   // DELETE Task
@@ -99,9 +109,8 @@ class TaskService {
     if (res.statusCode == 200) {
       final map = jsonDecode(res.body);
       return map['status'] == true || map['status'] == 'true';
-    } else {
-      throw Exception('Failed to delete task: HTTP ${res.statusCode}');
     }
+    throw _buildHttpError(res);
   }
 
   // UPDATE Task
@@ -117,9 +126,8 @@ class TaskService {
     if (res.statusCode == 200) {
       final map = jsonDecode(res.body);
       return map['status'] == true || map['status'] == 'true';
-    } else {
-      throw Exception('Failed to update task: HTTP ${res.statusCode}');
     }
+    throw _buildHttpError(res);
   }
 
   // Start Task
@@ -137,9 +145,8 @@ class TaskService {
       } else {
         throw Exception(map['message'] ?? 'Failed to start task');
       }
-    } else {
-      throw Exception('HTTP ${res.statusCode}: ${res.body}');
     }
+    throw _buildHttpError(res);
   }
 
   // Complete Task
@@ -163,8 +170,7 @@ class TaskService {
       } else {
         throw Exception(map['message'] ?? 'Failed to complete task');
       }
-    } else {
-      throw Exception('HTTP ${res.statusCode}: ${res.body}');
     }
+    throw _buildHttpError(res);
   }
 }

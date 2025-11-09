@@ -7,6 +7,7 @@ import '../../tasktype/providers/task_type_provider.dart';
 import '../../users/providers/users_provider.dart';
 import '../../devices/providers/devices_provider.dart';
 import '../providers/tasks_provider.dart';
+import '../../../shared/utils/app_snackbar.dart';
 
 class AddTaskForm extends StatefulWidget {
   final TabController tabController;
@@ -29,6 +30,7 @@ class _AddTaskFormState extends State<AddTaskForm> {
   TaskType? _selectedTaskType;
 
   bool _loadingLists = false;
+  bool _canSubmit = false;
 
   @override
   void initState() {
@@ -45,7 +47,9 @@ class _AddTaskFormState extends State<AddTaskForm> {
     final devicesProv = context.read<DevicesProvider>();
     final taskTypeProv = context.read<TaskTypeProvider>();
     // Only fetch if empty to prevent redundant calls
-    if (usersProv.items.isEmpty || devicesProv.devices.isEmpty || taskTypeProv.allTaskType.isEmpty) {
+    if (usersProv.items.isEmpty ||
+        devicesProv.devices.isEmpty ||
+        taskTypeProv.allTaskType.isEmpty) {
       setState(() => _loadingLists = true);
       await Future.wait([
         if (usersProv.items.isEmpty) usersProv.load(token),
@@ -53,6 +57,21 @@ class _AddTaskFormState extends State<AddTaskForm> {
         if (taskTypeProv.allTaskType.isEmpty) taskTypeProv.loadTaskType(token),
       ]);
       setState(() => _loadingLists = false);
+      _updateSubmitState();
+    } else {
+      _updateSubmitState();
+    }
+  }
+
+  void _updateSubmitState() {
+    final hasTaskType = _selectedTaskType != null;
+    final hasUser = _selectedUserId != null;
+    final hasDevice = _selectedDeviceId != null;
+    final hasDueDate = _dueDateTime != null;
+
+    final shouldEnable = hasTaskType && hasUser && hasDevice && hasDueDate;
+    if (shouldEnable != _canSubmit) {
+      setState(() => _canSubmit = shouldEnable);
     }
   }
 
@@ -72,19 +91,26 @@ class _AddTaskFormState extends State<AddTaskForm> {
       lastDate: DateTime(2100),
     );
     if (date == null) return;
-    final time = await showTimePicker(context: context, initialTime: TimeOfDay(hour: 18, minute: 0));
+    final time = await showTimePicker(
+        context: context, initialTime: TimeOfDay(hour: 18, minute: 0));
     if (time == null) return;
     setState(() {
-      _dueDateTime = DateTime(date.year, date.month, date.day, time.hour, time.minute);
+      _dueDateTime =
+          DateTime(date.year, date.month, date.day, time.hour, time.minute);
+      _updateSubmitState();
     });
   }
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
+    if (!_canSubmit) {
+      AppSnackBar.error(context, 'Please fill all required fields.');
+      return;
+    }
     final auth = context.read<AuthProvider>();
     final token = auth.token;
     if (token == null) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Not authenticated')));
+      AppSnackBar.error(context, 'Not authenticated');
       return;
     }
 
@@ -104,18 +130,14 @@ class _AddTaskFormState extends State<AddTaskForm> {
 
       if (created) {
         widget.tabController.animateTo(0);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Task created')),
-        );
+        AppSnackBar.success(context, 'Task created');
         Navigator.of(context).pop();
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Failed to create task')),
-        );
+        AppSnackBar.error(context, 'Failed to create task');
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+        AppSnackBar.error(context, 'Error: $e');
       }
     }
   }
@@ -135,120 +157,166 @@ class _AddTaskFormState extends State<AddTaskForm> {
     final creating = context.watch<TasksProvider>().creating;
 
     return Scaffold(
-      body: Padding(
-        padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
-        child: SingleChildScrollView(
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
-            child: Form(
-              key: _formKey,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  _loadingLists
-                      ? const SizedBox.shrink()
-                      : DropdownButtonFormField<TaskType>(
-                    value: _selectedTaskType,
-                    decoration: const InputDecoration(labelText: 'Task Type'),
-                    items: taskTypeProv.allTaskType.map((d) {
-                      return DropdownMenuItem<TaskType>(
-                        value: d,
-                        child: Text(d.name),
-                      );
-                    }).toList(),
-                    onChanged: (v) => setState(() => _selectedTaskType = v),
-                    validator: (v) => v == null ? 'Please select a task type' : null,
-                  ),
-
-                  const SizedBox(height: 8),
-                  const SizedBox(height: 8),
-                  // USERS dropdown
-                  _loadingLists ? const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 12),
-                    child: LinearProgressIndicator(),
-                  ): DropdownButtonFormField<int>(
-                    value: _selectedUserId,
-                    decoration: const InputDecoration(labelText: 'Assign User'),
-                    items: usersProv.items.map((u) {
-                      return DropdownMenuItem<int>(
-                        value: u.id,
-                        child: Text(u.name),
-                      );
-                    }).toList(),
-                    onChanged: (v) => setState(() => _selectedUserId = v),
-                    validator: (v) => v == null ? 'Please select a user' : null,
-                  ),
-
-                  const SizedBox(height: 8),
-
-                  // DEVICES dropdown
-                  _loadingLists
-                      ? const SizedBox.shrink()
-                      : DropdownButtonFormField<int>(
-                    value: _selectedDeviceId,
-                    decoration: const InputDecoration(labelText: 'Device'),
-                    items: devicesProv.devices.map((d) {
-                      return DropdownMenuItem<int>(
-                        value: d.id,
-                        child: Text('${d.serialNumber} (${d.type ?? 'Device'})'),
-                      );
-                    }).toList(),
-                    onChanged: (v) => setState(() => _selectedDeviceId = v),
-                    validator: (v) => v == null ? 'Please select a device' : null,
-                  ),
-
-                  const SizedBox(height: 8),
-
-                  Row(
-                    children: [
-                      Expanded(
-                        child: DropdownButtonFormField<String>(
-                          value: _priority,
-                          items: const [
-                            DropdownMenuItem(value: 'High', child: Text('High')),
-                            DropdownMenuItem(value: 'Medium', child: Text('Medium')),
-                            DropdownMenuItem(value: 'Low', child: Text('Low')),
-                          ],
-                          onChanged: (v) => setState(() => _priority = v ?? 'High'),
-                          decoration: const InputDecoration(labelText: 'Priority'),
-                        ),
+      appBar: AppBar(
+        title: const Text('Assign Task'),
+        backgroundColor: const Color(0xFFA7D222),
+        foregroundColor: Colors.white,
+      ),
+      body: _loadingLists
+          ? const Center(
+              child: CircularProgressIndicator(),
+            )
+          : SingleChildScrollView(
+              padding: const EdgeInsets.all(20),
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    const SizedBox(height: 16),
+                    // Task Type
+                    DropdownButtonFormField<TaskType>(
+                      value: _selectedTaskType,
+                      decoration: const InputDecoration(
+                        labelText: 'Task Type',
+                        border: OutlineInputBorder(),
                       ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          onPressed: _pickDueDateTime,
-                          icon: const Icon(Icons.calendar_today),
-                          label: Text(_dueDateTime == null ? 'Pick Due' : _formatDateTime(_dueDateTime!)),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 14),
-                  // ... rest of your form widgets ...
-                  SizedBox(
-                    width: double.infinity,
-                    height: 46,
-                    child: ElevatedButton(
-                      onPressed: creating ? null : _submit,
-                      child: creating
-                          ? const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(
-                          color: Colors.white,
-                          strokeWidth: 2,
-                        ),
-                      )
-                          : const Text('Assign Task'),
+                      items: taskTypeProv.allTaskType.map((d) {
+                        return DropdownMenuItem<TaskType>(
+                          value: d,
+                          child: Text(d.name),
+                        );
+                      }).toList(),
+                      onChanged: (v) {
+                        setState(() => _selectedTaskType = v);
+                        _updateSubmitState();
+                      },
+                      validator: (v) =>
+                          v == null ? 'Please select a task type' : null,
                     ),
-                  ),
-                  const SizedBox(height: 8),
-                ],
+                    const SizedBox(height: 16),
+
+                    // Assign User
+                    DropdownButtonFormField<int>(
+                      value: _selectedUserId,
+                      decoration: const InputDecoration(
+                        labelText: 'Assign User',
+                        border: OutlineInputBorder(),
+                      ),
+                      items: usersProv.items.map((u) {
+                        return DropdownMenuItem<int>(
+                          value: u.id,
+                          child: Text(u.name),
+                        );
+                      }).toList(),
+                      onChanged: (v) {
+                        setState(() => _selectedUserId = v);
+                        _updateSubmitState();
+                      },
+                      validator: (v) =>
+                          v == null ? 'Please select a user' : null,
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Device
+                    DropdownButtonFormField<int>(
+                      value: _selectedDeviceId,
+                      decoration: const InputDecoration(
+                        labelText: 'Device',
+                        border: OutlineInputBorder(),
+                      ),
+                      items: devicesProv.devices.map((d) {
+                        return DropdownMenuItem<int>(
+                          value: d.id,
+                          child:
+                              Text('${d.serialNumber} (${d.type ?? 'Device'})'),
+                        );
+                      }).toList(),
+                      onChanged: (v) {
+                        setState(() => _selectedDeviceId = v);
+                        _updateSubmitState();
+                      },
+                      validator: (v) =>
+                          v == null ? 'Please select a device' : null,
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Priority
+                    DropdownButtonFormField<String>(
+                      value: _priority,
+                      items: const [
+                        DropdownMenuItem(value: 'High', child: Text('High')),
+                        DropdownMenuItem(
+                            value: 'Medium', child: Text('Medium')),
+                        DropdownMenuItem(value: 'Low', child: Text('Low')),
+                      ],
+                      onChanged: (v) => setState(() => _priority = v ?? 'High'),
+                      decoration: const InputDecoration(
+                        labelText: 'Priority',
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Due Date & Time
+                    InkWell(
+                      onTap: _pickDueDateTime,
+                      child: InputDecorator(
+                        decoration: const InputDecoration(
+                          labelText: 'Due Date & Time',
+                          prefixIcon: Icon(Icons.calendar_today),
+                          border: OutlineInputBorder(),
+                        ),
+                        child: Text(
+                          _dueDateTime == null
+                              ? 'Select due date & time'
+                              : _formatDateTime(_dueDateTime!),
+                          style: TextStyle(
+                            color: _dueDateTime == null
+                                ? Colors.grey[600]
+                                : Colors.black87,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 30),
+                    // Submit Button
+                    SizedBox(
+                      width: double.infinity,
+                      height: 50,
+                      child: ElevatedButton(
+                        onPressed: (creating || !_canSubmit) ? null : _submit,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.blue,
+                          disabledBackgroundColor: Colors.blue.withOpacity(0.6),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                        ),
+                        child: creating
+                            ? const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                  color: Colors.white,
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            : const Text(
+                                'Assign Task',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.white,
+                                ),
+                              ),
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                  ],
+                ),
               ),
             ),
-          ),
-        ),
-      ),
     );
   }
 }

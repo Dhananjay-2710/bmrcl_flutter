@@ -85,7 +85,6 @@ class ShiftsProvider extends ChangeNotifier {
   Future<Position> currentPosition() async {
     final serviceEnabled = await Geolocator.isLocationServiceEnabled();
     if (!serviceEnabled) {
-      await Geolocator.openLocationSettings();
       throw Exception('Location services are disabled.');
     }
     var permission = await Geolocator.checkPermission();

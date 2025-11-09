@@ -77,16 +77,26 @@ class _CheckPreviewSheetState extends State<CheckPreviewSheet> {
             Row(
               children: [
                 Expanded(
-                  child: OutlinedButton(
+                  child: ElevatedButton(
                     onPressed: () => Navigator.pop(context, CheckPreviewResult(confirm: false, forceIfFar: false)),
-                    child: const Text('Retake'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.grey,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                    child: const Text('Retake', style: TextStyle(color: Colors.white)),
                   ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: ElevatedButton(
                     onPressed: () => Navigator.pop(context, CheckPreviewResult(confirm: true, forceIfFar: force)),
-                    child: const Text('Confirm'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.green,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                    child: const Text('Confirm', style: TextStyle(color: Colors.white)),
                   ),
                 ),
               ],

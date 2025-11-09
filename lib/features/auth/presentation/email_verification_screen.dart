@@ -1,10 +1,12 @@
 import 'dart:async';
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../providers/auth_provider.dart';
 import '../../auth/presentation/login_screen.dart';
+import '../../../shared/utils/app_snackbar.dart';
 
 class EmailVerificationScreen extends StatefulWidget {
   final String email;
@@ -120,9 +122,7 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
   }
 
   void _toast(String msg) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(msg), behavior: SnackBarBehavior.floating),
-    );
+    AppSnackBar.info(context, msg);
   }
 
   String _maskedEmail(String email) {

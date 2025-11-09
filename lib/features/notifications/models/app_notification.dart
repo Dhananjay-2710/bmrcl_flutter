@@ -26,8 +26,8 @@ class NotificationData {
     }
 
     return NotificationData(
-      title: (m['title'] ?? '').toString(),
-      message: (m['message'] ?? '').toString(),
+      title: (m['title'] ?? 'Notification').toString(),
+      message: (m['message'] ?? 'No message').toString(),
       url: (m['url'] ?? '').toString(),
       event: (m['event'] ?? '').toString(),
       fromUserId: asInt(m['from_user_id']),
@@ -55,10 +55,31 @@ class AppNotification {
       if (v == null) return null;
       try { return DateTime.parse(v.toString()); } catch (_) { return null; }
     }
+    
+    // Handle different data structures
+    Map<String, dynamic> dataMap = {};
+    if (m['data'] != null) {
+      if (m['data'] is Map) {
+        dataMap = Map<String, dynamic>.from(m['data']);
+      } else if (m['data'] is String) {
+        // Sometimes data might be JSON string
+        try {
+          final decoded = Map<String, dynamic>.from(m['data']);
+          dataMap = decoded;
+        } catch (e) {
+          dataMap = {
+            'title': 'Notification',
+            'message': m['data'].toString(),
+            'url': '',
+            'event': '',
+          };
+        }
+      }
+    }
 
     return AppNotification(
       id: (m['id'] ?? '').toString(),
-      data: NotificationData.fromMap(Map<String, dynamic>.from(m['data'] ?? {})),
+      data: NotificationData.fromMap(dataMap),
       readAt: asDate(m['read_at']),
     );
   }
@@ -80,11 +101,37 @@ class PaginatedNotifications {
   });
 
   factory PaginatedNotifications.fromMap(Map<String, dynamic> body) {
-    final wrap = Map<String, dynamic>.from(body['notifications'] ?? {});
-    final list = (wrap['data'] ?? []) as List;
-
     int _asInt(dynamic v, [int def = 0]) =>
         int.tryParse((v ?? def).toString()) ?? def;
+
+    // Try to find the notifications data
+    Map<String, dynamic>? wrap;
+    List? list;
+
+    // Case 1: body['notifications'] is a Map (paginated)
+    if (body['notifications'] is Map) {
+      wrap = Map<String, dynamic>.from(body['notifications']);
+      list = (wrap['data'] ?? []) as List;
+    }
+    // Case 2: body['notifications'] is a List (direct array)
+    else if (body['notifications'] is List) {
+      list = body['notifications'] as List;
+      wrap = {
+        'current_page': 1,
+        'last_page': 1,
+        'total': list.length,
+      };
+    }
+    // Case 3: body itself is the pagination wrapper
+    else if (body['data'] is List) {
+      wrap = body;
+      list = body['data'] as List;
+    }
+    // Case 4: Fallback - empty
+    else {
+      wrap = {};
+      list = [];
+    }
 
     return PaginatedNotifications(
       currentPage: _asInt(wrap['current_page'], 1),

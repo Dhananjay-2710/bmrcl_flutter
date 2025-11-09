@@ -55,7 +55,7 @@ class _HomeTabState extends State<HomeTab> {
             children: [
               _summaryCard("Devices", admin.summary?['device_count'] ?? 0, Icons.devices_other, Colors.teal),
               _summaryCard("Stations", admin.summary?['station_count'] ?? 0, Icons.location_city, Colors.green),
-              _summaryCard("Gates", admin.summary?['gate_count'] ?? 0, Icons.meeting_room, Colors.orange),
+              _summaryCard("Access Point", admin.summary?['gate_count'] ?? 0, Icons.meeting_room, Colors.orange),
               _summaryCard("Users", admin.summary?['user_count'] ?? 0, Icons.people, Colors.blue),
             ],
           ),
@@ -78,7 +78,7 @@ class _HomeTabState extends State<HomeTab> {
           const SizedBox(height: 10),
           _sectionTitle("Daily Transactions"),
           _chartCard(
-            height: 260,
+            height: 280,
             child: admin.dailyTransactions == null
                 ? const _LoadingOrEmpty()
                 : _dailyAmountBarChart(admin.dailyTransactions!),
@@ -96,28 +96,55 @@ class _HomeTabState extends State<HomeTab> {
           const SizedBox(height: 10),
 
           // Top devices list
-          _sectionTitle("Devices"),
+          _sectionHeader(
+            title: "Devices",
+            trailing: admin.deviceTransactions.length > 5
+                ? TextButton.icon(
+                    onPressed: () => _openDeviceList(admin.deviceTransactions),
+                    icon: const Icon(Icons.list_alt, size: 16),
+                    label: Text('View all (${admin.deviceTransactions.length})'),
+                  )
+                : null,
+          ),
           _deviceList(admin.deviceTransactions),
 
           const SizedBox(height: 10),
 
           // Users list
-          _sectionTitle("Users"),
+          _sectionHeader(
+            title: "Users",
+            trailing: admin.users.length > 6
+                ? TextButton.icon(
+                    onPressed: () => _openUserList(admin.users),
+                    icon: const Icon(Icons.people_alt_outlined, size: 16),
+                    label: Text('View all (${admin.users.length})'),
+                  )
+                : null,
+          ),
           _usersList(admin.users),
         ],
       ),
     );
   }
 
-  Widget _sectionTitle(String title) {
+  Widget _sectionHeader({required String title, Widget? trailing}) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 2),
-      child: Text(
-        title,
-        style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              title,
+              style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+            ),
+          ),
+          if (trailing != null) trailing,
+        ],
       ),
     );
   }
+
+  Widget _sectionTitle(String title) => _sectionHeader(title: title);
 
   Widget _summaryCard(String title, dynamic value, IconData icon, Color color) {
     return Card(
@@ -139,7 +166,7 @@ class _HomeTabState extends State<HomeTab> {
               textAlign: TextAlign.center,
               style: const TextStyle(
                 fontWeight: FontWeight.bold,
-                fontSize: 12,
+                fontSize: 10,
               ),
             ),
             const SizedBox(height: 2),
@@ -147,7 +174,7 @@ class _HomeTabState extends State<HomeTab> {
               value.toString(),
               textAlign: TextAlign.center,
               style: const TextStyle(
-                fontSize: 12,
+                fontSize: 10,
                 fontWeight: FontWeight.w600,
               ),
             ),
@@ -222,64 +249,120 @@ class _HomeTabState extends State<HomeTab> {
     }
 
     // Wrap in a horizontal scroll view so only ~10 groups show at once
-    return SizedBox(
-      height: 260, // adjust as needed
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: SizedBox(
-          width: fullChartWidth,
-          child: BarChart(
-            BarChartData(
-              groupsSpace: groupsSpace,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Legend
+        Padding(
+          padding: const EdgeInsets.only(bottom: 8),
+          child: Wrap(
+            spacing: 12,
+            runSpacing: 8,
+            children: const [
+              _LegendItem(color: Colors.blue, label: 'Tickets'),
+              _LegendItem(color: Colors.orange, label: 'Passengers'),
+            ],
+          ),
+        ),
+        
+        // Chart
+        SizedBox(
+          height: 220,
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: SizedBox(
+              width: fullChartWidth,
+              child: BarChart(
+                BarChartData(
+                  groupsSpace: groupsSpace,
               gridData: FlGridData(show: true),
-              borderData: FlBorderData(
-                show: true,
-                border: const Border(
-                  left: BorderSide(color: Colors.black, width: 1),
-                  bottom: BorderSide(color: Colors.black, width: 1),
-                ),
-              ),
-              titlesData: FlTitlesData(
-                topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                bottomTitles: AxisTitles(
-                  sideTitles: SideTitles(
-                    showTitles: true,
-                    interval: 1,
-                    getTitlesWidget: (value, meta) {
-                      final idx = value.toInt();
-                      if (idx < 0 || idx >= entries.length) return const SizedBox.shrink();
-                      final date = entries[idx].key; // "YYYY-MM-DD"
-                      return Padding(
-                        padding: const EdgeInsets.only(top: 6),
-                        child: Text(date.split('-').last), // show day
-                      );
-                    },
+                  borderData: FlBorderData(
+                    show: true,
+                    border: const Border(
+                      left: BorderSide(color: Colors.black, width: 1),
+                      bottom: BorderSide(color: Colors.black, width: 1),
+                    ),
+                  ),
+                  titlesData: FlTitlesData(
+                    topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                    rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                    bottomTitles: AxisTitles(
+                      sideTitles: SideTitles(
+                        showTitles: true,
+                        interval: 1,
+                        getTitlesWidget: (value, meta) {
+                          final idx = value.toInt();
+                          if (idx < 0 || idx >= entries.length) return const SizedBox.shrink();
+                          final date = entries[idx].key; // "YYYY-MM-DD"
+                          final parts = date.split('-');
+                          if (parts.length == 3) {
+                            final day = parts[2];
+                            final month = _getMonthName(int.tryParse(parts[1]) ?? 1);
+                            return Padding(
+                              padding: const EdgeInsets.only(top: 6),
+                              child: Text('$day $month', style: const TextStyle(fontSize: 6)),
+                            );
+                          }
+                          return const SizedBox.shrink();
+                        },
+                      ),
+                    ),
+                    leftTitles: AxisTitles(
+                      sideTitles: SideTitles(
+                        showTitles: true,
+                        reservedSize: 40,
+                        getTitlesWidget: (value, meta) {
+                          if (value == 0) return const Text("0");
+                          if (value >= 1000) return Text("${(value / 1000).toStringAsFixed(0)}k");
+                          return Text(
+                            value.toInt().toString(),
+                            style: const TextStyle(
+                              fontSize: 10,
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  ),
+                  barGroups: barGroups,
+                  barTouchData: BarTouchData(
+                    enabled: true,
+                    handleBuiltInTouches: true,
+                    touchTooltipData: BarTouchTooltipData(
+                      tooltipPadding: const EdgeInsets.all(8),
+                      tooltipRoundedRadius: 6,
+                      getTooltipItem: (group, groupIndex, rod, rodIndex) {
+                        final idx = groupIndex;
+                        if (idx < 0 || idx >= entries.length) return null;
+                        final date = entries[idx].key;
+                        final parts = date.split('-');
+                        String formattedDate = date;
+                        if (parts.length == 3) {
+                          final day = parts[2];
+                          final month = _getMonthName(int.tryParse(parts[1]) ?? 1);
+                          formattedDate = '$day $month';
+                        }
+                        final label = rodIndex == 0 ? 'Tickets' : 'Passengers';
+                        return BarTooltipItem(
+                          '$formattedDate\n$label: ${rod.toY.toStringAsFixed(0)}',
+                          const TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: Colors.white),
+                        );
+                      },
+                    ),
                   ),
                 ),
-                leftTitles: AxisTitles(
-                  sideTitles: SideTitles(
-                    showTitles: true,
-                    reservedSize: 40,
-                    getTitlesWidget: (value, meta) {
-                      if (value == 0) return const Text("0");
-                      if (value >= 1000) return Text("${(value / 1000).toStringAsFixed(0)}k");
-                      return Text(
-                        value.toInt().toString(),
-                        style: TextStyle(
-                          fontSize: 10,   // smaller than default (usually ~14–16)
-                        ),
-                      );
-                    },
-                  ),
-                ),
               ),
-              barGroups: barGroups,
             ),
           ),
         ),
-      ),
+      ],
     );
+  }
+
+  String _getMonthName(int month) {
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    if (month < 1 || month > 12) return '';
+    return months[month - 1];
   }
 
   /// Station totals bar chart from `station_totals`: stationCode -> { amount, passengers, tickets }
@@ -497,41 +580,21 @@ class _HomeTabState extends State<HomeTab> {
       );
     }
 
+    const previewCount = 5;
+    final visible = devices.take(previewCount).toList();
+
     return Card(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       elevation: 4,
-      child: SizedBox(
-        height: 300, // 👈 adjust so ~5 items fit
-        child: ListView.separated(
-          padding: const EdgeInsets.all(8),
-          itemCount: devices.length,
-          separatorBuilder: (_, __) => const Divider(height: 1),
-          itemBuilder: (_, i) {
-            final d = devices[i] as Map<String, dynamic>;
-            final serial = (d['serial_number'] ?? '').toString();
-            final amount = double.tryParse((d['total_device_transactions_amount'] ?? '0').toString()) ?? 0.0;
-            final count = (d['device_transactions_count'] as num?)?.toInt() ?? 0;
-            final passengerCount = int.tryParse((d['total_device_transactions_passengers_count'] ?? '0').toString()) ?? 0;
-
-            return ListTile(
-              leading: CircleAvatar(
-                backgroundColor: Colors.teal.withOpacity(0.1),
-                child: const Icon(Icons.devices_other, color: Colors.teal),
-              ),
-              title: Text(
-                serial,
-                style: const TextStyle(fontSize: 12),
-              ),
-              subtitle: Text(
-                'Tickets: $count \nPassenger Count: $passengerCount',
-                style: const TextStyle(fontSize: 10, height: 1.2),
-              ),
-              trailing: Text(
-                '₹${amount.toStringAsFixed(0)}',
-                style: const TextStyle(fontWeight: FontWeight.bold),
-              ),
-            );
-          },
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        child: Column(
+          children: [
+            for (var i = 0; i < visible.length; i++) ...[
+              _DeviceListTile(data: visible[i] as Map<String, dynamic>),
+              if (i != visible.length - 1) const Divider(height: 1),
+            ],
+          ],
         ),
       ),
     );
@@ -547,74 +610,41 @@ class _HomeTabState extends State<HomeTab> {
       );
     }
 
+    const previewCount = 6;
+    final visible = users.take(previewCount).toList();
+
     return Card(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       elevation: 4,
-      child: SizedBox(
-        height: 360, // 👈 adjust so ~6 rows fit
-        child: ListView.separated(
-          padding: const EdgeInsets.all(2),
-          itemCount: users.length,
-          separatorBuilder: (_, __) => const Divider(height: 1),
-          itemBuilder: (_, i) {
-            final u = users[i] as Map<String, dynamic>;
-            final name = (u['name'] ?? '').toString();
-            final role = (u['role'] ?? '').toString();
-            final profile = u['profile_image'] as String?;
-            final hasProfile = profile != null && profile.isNotEmpty;
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        child: Column(
+          children: [
+            for (var i = 0; i < visible.length; i++) ...[
+              _UserListTile(data: visible[i] as Map<String, dynamic>),
+              if (i != visible.length - 1) const Divider(height: 1),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
 
-            int _asInt(dynamic v) {
-              if (v == null) return 0;
-              if (v is num) return v.toInt();
-              if (v is String) return int.tryParse(v) ?? 0;
-              return 0;
-            }
+  void _openDeviceList(List<dynamic> devices) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => _DeviceListScreen(
+          devices: devices.cast<Map<String, dynamic>>(),
+        ),
+      ),
+    );
+  }
 
-            double asDouble(dynamic v) {
-              if (v == null) return 0.0;
-              if (v is num) return v.toDouble();
-              if (v is String) return double.tryParse(v) ?? 0.0;
-              return 0.0;
-            }
-
-            final int deviceCount      = _asInt(u['device_count']);
-            final int ticketSold       = _asInt(u['ticket_sold']);
-            final double ticketSoldPct = asDouble(u['ticket_sold_percentage']);
-
-            return ListTile(
-              leading: CircleAvatar(
-                backgroundImage: hasProfile
-                    ? NetworkImage(profile)
-                    : const AssetImage('assets/images/profile.jpg') as ImageProvider,
-              ),
-              title: Text(
-                name,
-                style: const TextStyle(fontSize: 12),
-              ),
-              subtitle: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(role, style: const TextStyle(fontSize: 10)),
-                  const SizedBox(height: 2),
-                  Row(
-                    children: [
-                      Text('Assign Devices: $deviceCount', style: const TextStyle(fontSize: 10)),
-                      const SizedBox(width: 8),
-                      Text('Tickets: $ticketSold', style: const TextStyle(fontSize: 10)),
-                      const SizedBox(width: 8),
-                      Text('Sold: ${ticketSoldPct.toStringAsFixed(1)}%',
-                          style: const TextStyle(fontSize: 10)),
-                    ],
-                  ),
-                ],
-              ),
-              isThreeLine: true,
-              onTap: () {
-                // TODO: Navigate to user details, if needed
-              },
-            );
-          },
+  void _openUserList(List<dynamic> users) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => _UserListScreen(
+          users: users.cast<Map<String, dynamic>>(),
         ),
       ),
     );
@@ -634,6 +664,147 @@ class _LoadingOrEmpty extends StatelessWidget {
       return Center(child: Text('Error: ${admin.error}'));
     }
     return const Center(child: Text('No data'));
+  }
+}
+
+class _DeviceListTile extends StatelessWidget {
+  final Map<String, dynamic> data;
+
+  const _DeviceListTile({required this.data});
+
+  @override
+  Widget build(BuildContext context) {
+    final serial = (data['serial_number'] ?? '').toString();
+    final amount = double.tryParse((data['total_device_transactions_amount'] ?? '0').toString()) ?? 0.0;
+    final count = (data['device_transactions_count'] as num?)?.toInt() ?? 0;
+    final passengerCount =
+        int.tryParse((data['total_device_transactions_passengers_count'] ?? '0').toString()) ?? 0;
+
+    return ListTile(
+      leading: CircleAvatar(
+        backgroundColor: Colors.teal.withOpacity(0.1),
+        child: const Icon(Icons.devices_other, color: Colors.teal),
+      ),
+      title: Text(serial, style: const TextStyle(fontSize: 12)),
+      subtitle: Text(
+        'Tickets: $count \nPassenger Count: $passengerCount',
+        style: const TextStyle(fontSize: 10, height: 1.2),
+      ),
+      trailing: Text(
+        '₹${amount.toStringAsFixed(0)}',
+        style: const TextStyle(fontWeight: FontWeight.bold),
+      ),
+    );
+  }
+}
+
+class _UserListTile extends StatelessWidget {
+  final Map<String, dynamic> data;
+
+  const _UserListTile({required this.data});
+
+  int _asInt(dynamic v) {
+    if (v == null) return 0;
+    if (v is num) return v.toInt();
+    if (v is String) return int.tryParse(v) ?? 0;
+    return 0;
+  }
+
+  double _asDouble(dynamic v) {
+    if (v == null) return 0.0;
+    if (v is num) return v.toDouble();
+    if (v is String) return double.tryParse(v) ?? 0.0;
+    return 0.0;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final name = (data['name'] ?? '').toString();
+    final role = (data['role'] ?? '').toString();
+    final profile = data['profile_image_url'] as String?;
+    final hasProfile = profile != null &&
+        profile.trim().isNotEmpty &&
+        profile.trim().toLowerCase() != 'null';
+
+    final deviceCount = _asInt(data['device_count']);
+    final ticketSold = _asInt(data['ticket_sold']);
+    final ticketSoldPct = _asDouble(data['ticket_sold_percentage']);
+
+    return ListTile(
+      leading: CircleAvatar(
+        backgroundImage: hasProfile
+            ? NetworkImage(profile!)
+            : const AssetImage('assets/images/profile.jpg') as ImageProvider,
+        child: !hasProfile
+            ? Icon(Icons.person, size: 20, color: Colors.grey[600])
+            : null,
+      ),
+      title: Text(name, style: const TextStyle(fontSize: 12)),
+      subtitle: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(role, style: const TextStyle(fontSize: 10)),
+          const SizedBox(height: 2),
+          Wrap(
+            spacing: 8,
+            runSpacing: 4,
+            children: [
+              Text('Assign Devices: $deviceCount', style: const TextStyle(fontSize: 10)),
+              Text('Tickets: $ticketSold', style: const TextStyle(fontSize: 10)),
+              Text('Sold: ${ticketSoldPct.toStringAsFixed(1)}%', style: const TextStyle(fontSize: 10)),
+            ],
+          ),
+        ],
+      ),
+      isThreeLine: true,
+    );
+  }
+}
+
+class _DeviceListScreen extends StatelessWidget {
+  final List<Map<String, dynamic>> devices;
+
+  const _DeviceListScreen({required this.devices});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('All Devices'),
+        backgroundColor: const Color(0xFFA7D222),
+        foregroundColor: Colors.white,
+      ),
+      body: ListView.separated(
+        padding: const EdgeInsets.all(8),
+        itemCount: devices.length,
+        separatorBuilder: (_, __) => const Divider(height: 1),
+        itemBuilder: (_, i) => _DeviceListTile(data: devices[i]),
+      ),
+    );
+  }
+}
+
+class _UserListScreen extends StatelessWidget {
+  final List<Map<String, dynamic>> users;
+
+  const _UserListScreen({required this.users});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('All Users'),
+        backgroundColor: const Color(0xFFA7D222),
+        foregroundColor: Colors.white,
+      ),
+      body: ListView.separated(
+        padding: const EdgeInsets.all(8),
+        itemCount: users.length,
+        separatorBuilder: (_, __) => const Divider(height: 1),
+        itemBuilder: (_, i) => _UserListTile(data: users[i]),
+      ),
+    );
   }
 }
 

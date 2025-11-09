@@ -3,6 +3,9 @@ import '../models/faq.dart';
 import '../services/faq_service.dart';
 
 class FaqsProvider extends ChangeNotifier {
+  final FaqService service;
+  FaqsProvider(this.service);
+
   List<Faq> items = [];
   bool loading = false;
   String? error;
@@ -16,7 +19,7 @@ class FaqsProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      items = await FaqService.fetchFaqs(token);
+      items = await service.fetchFaqs(token);
     } catch (e) {
       error = e.toString();
       items = [];

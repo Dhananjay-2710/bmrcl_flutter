@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../auth/providers/auth_provider.dart';
+import '../../../shared/utils/app_snackbar.dart';
 
 class ForgotPasswordScreen extends StatefulWidget {
   const ForgotPasswordScreen({super.key});
@@ -51,7 +52,8 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     final value = v ?? '';
     if (value.isEmpty) return 'Enter a new password';
     if (value.length < 8) return 'At least 8 characters';
-    if (!RegExp(r'[A-Za-z]').hasMatch(value) || !RegExp(r'\d').hasMatch(value)) {
+    if (!RegExp(r'[A-Za-z]').hasMatch(value) ||
+        !RegExp(r'\d').hasMatch(value)) {
       return 'Use letters and numbers';
     }
     return null;
@@ -64,10 +66,12 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     return null;
   }
 
-  void _toast(String msg) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(msg), behavior: SnackBarBehavior.floating),
-    );
+  void _toast(String msg, {bool success = false}) {
+    if (success) {
+      AppSnackBar.success(context, msg);
+    } else {
+      AppSnackBar.error(context, msg);
+    }
   }
 
   Future<void> _submit() async {
@@ -87,7 +91,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
       );
       if (!mounted) return;
       if (ok) {
-        _toast('Password reset successfully!');
+        _toast('Password reset successfully!', success: true);
         Navigator.pop(context);
       } else {
         _toast('Failed to reset password');
@@ -122,7 +126,10 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(16),
                   boxShadow: const [
-                    BoxShadow(color: Colors.black12, blurRadius: 18, offset: Offset(0, 8)),
+                    BoxShadow(
+                        color: Colors.black12,
+                        blurRadius: 18,
+                        offset: Offset(0, 8)),
                   ],
                 ),
                 child: Column(
@@ -175,15 +182,20 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                             TextFormField(
                               controller: _emailController,
                               focusNode: _emailNode,
-                              autofillHints: const [AutofillHints.username, AutofillHints.email],
+                              autofillHints: const [
+                                AutofillHints.username,
+                                AutofillHints.email
+                              ],
                               keyboardType: TextInputType.emailAddress,
                               textInputAction: TextInputAction.next,
                               validator: _validateEmail,
-                              onFieldSubmitted: (_) => _newPassNode.requestFocus(),
+                              onFieldSubmitted: (_) =>
+                                  _newPassNode.requestFocus(),
                               decoration: InputDecoration(
                                 labelText: 'Email',
                                 prefixIcon: const Icon(Icons.email_outlined),
-                                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                                border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(12)),
                               ),
                             ),
                             const SizedBox(height: 14),
@@ -196,17 +208,24 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                               obscureText: _hideNew,
                               textInputAction: TextInputAction.next,
                               validator: _validatePassword,
-                              onFieldSubmitted: (_) => _confirmPassNode.requestFocus(),
+                              onFieldSubmitted: (_) =>
+                                  _confirmPassNode.requestFocus(),
                               decoration: InputDecoration(
                                 labelText: 'New Password',
                                 prefixIcon: const Icon(Icons.lock_outline),
                                 suffixIcon: IconButton(
-                                  tooltip: _hideNew ? 'Show password' : 'Hide password',
-                                  onPressed: () => setState(() => _hideNew = !_hideNew),
-                                  icon: Icon(_hideNew ? Icons.visibility_off : Icons.visibility),
+                                  tooltip: _hideNew
+                                      ? 'Show password'
+                                      : 'Hide password',
+                                  onPressed: () =>
+                                      setState(() => _hideNew = !_hideNew),
+                                  icon: Icon(_hideNew
+                                      ? Icons.visibility_off
+                                      : Icons.visibility),
                                 ),
                                 helperText: 'Min 8 chars, letters & numbers',
-                                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                                border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(12)),
                               ),
                             ),
                             const SizedBox(height: 14),
@@ -222,13 +241,20 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                               onFieldSubmitted: (_) => _submit(),
                               decoration: InputDecoration(
                                 labelText: 'Confirm Password',
-                                prefixIcon: const Icon(Icons.lock_reset_outlined),
+                                prefixIcon:
+                                    const Icon(Icons.lock_reset_outlined),
                                 suffixIcon: IconButton(
-                                  tooltip: _hideConfirm ? 'Show password' : 'Hide password',
-                                  onPressed: () => setState(() => _hideConfirm = !_hideConfirm),
-                                  icon: Icon(_hideConfirm ? Icons.visibility_off : Icons.visibility),
+                                  tooltip: _hideConfirm
+                                      ? 'Show password'
+                                      : 'Hide password',
+                                  onPressed: () => setState(
+                                      () => _hideConfirm = !_hideConfirm),
+                                  icon: Icon(_hideConfirm
+                                      ? Icons.visibility_off
+                                      : Icons.visibility),
                                 ),
-                                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                                border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(12)),
                               ),
                             ),
 
@@ -242,10 +268,14 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                                 onPressed: _loading ? null : _submit,
                                 icon: _loading
                                     ? const SizedBox(
-                                  width: 22, height: 22,
-                                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                                )
-                                    : const Icon(Icons.key, size: 20, color: Colors.white),
+                                        width: 22,
+                                        height: 22,
+                                        child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                            color: Colors.white),
+                                      )
+                                    : const Icon(Icons.key,
+                                        size: 20, color: Colors.white),
                                 label: Text(
                                   _loading ? 'Resetting…' : 'Reset Password',
                                   style: const TextStyle(
@@ -256,8 +286,10 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                                 ),
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: _brandDark,
-                                  disabledBackgroundColor: _brandDark.withValues(alpha: 0.6),
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                  disabledBackgroundColor:
+                                      _brandDark.withValues(alpha: 0.6),
+                                  shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12)),
                                   elevation: 0,
                                 ),
                               ),
@@ -267,11 +299,14 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
 
                             // Back
                             TextButton.icon(
-                              onPressed: _loading ? null : () => Navigator.pop(context),
+                              onPressed: _loading
+                                  ? null
+                                  : () => Navigator.pop(context),
                               icon: const Icon(Icons.arrow_back),
                               label: const Text('Back to Login'),
                               style: TextButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 8, vertical: 6),
                               ),
                             ),
                           ],

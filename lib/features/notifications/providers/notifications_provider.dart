@@ -57,6 +57,7 @@ class NotificationsProvider extends ChangeNotifier {
 
     _loading = true;
     notifyListeners();
+    
     try {
       final page = await service.list(token: _token!, page: 1);
       _items

@@ -1,20 +1,24 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:io';
+import 'package:flutter/foundation.dart';
 
-import '../../../core/api_client.dart';
 import '../../../constants/api_constants.dart';
+import '../../../core/api_client.dart';
 import '../models/my_shifts_models.dart';
 
 class ShiftService {
   final ApiClient api;
   ShiftService(this.api);
 
-  Never _throwForStatus(int code, String body) {
-    if (code == 401) throw Exception('Unauthorized. Please login again.');
-    if (code == 404) throw Exception('Endpoint not found (404).');
-    if (code >= 500) throw Exception('Server error ($code).');
-    throw Exception('HTTP $code: $body');
+  Exception _buildHttpError(int statusCode, String body) {
+    debugPrint('[ShiftService] HTTP $statusCode: $body');
+    if (statusCode == 401) {
+      return Exception('Your session expired. Please login again.');
+    }
+    if (statusCode >= 500) {
+      return Exception('We\'re having trouble reaching the server. Please try again later.');
+    }
+    return Exception('We couldn\'t complete that request. Please try again.');
   }
 
   Future<MyShiftsBundle> fetchMyShifts(String token) async {
@@ -22,10 +26,8 @@ class ShiftService {
       final res = await api.get(
         ApiConstants.myShiftEndpoint,
         token: token,
+        retryOn401: true,
       );
-
-      // debug:
-      // print('My Shifts -> ${res.statusCode}\n${res.body}');
 
       if (res.statusCode == 200) {
         final map = jsonDecode(res.body);
@@ -41,13 +43,14 @@ class ShiftService {
         return MyShiftsBundle.fromJson(map);
       }
 
-      _throwForStatus(res.statusCode, res.body);
-    } on SocketException catch (e) {
-      throw Exception('Network/DNS error: ${e.message}');
+      throw _buildHttpError(res.statusCode, res.body);
     } on TimeoutException {
       throw Exception('Request timed out.');
     } on FormatException catch (e) {
       throw Exception('Bad JSON: $e');
+    } catch (e) {
+      debugPrint('[ShiftService] fetchMyShifts error: $e');
+      rethrow;
     }
   }
 }

@@ -24,6 +24,36 @@ subprojects {
     project.evaluationDependsOn(":app")
 }
 
+subprojects { subProject ->
+    subProject.plugins.withId("com.android.application") {
+        applyJava17Compatibility(subProject)
+    }
+    subProject.plugins.withId("com.android.library") {
+        applyJava17Compatibility(subProject)
+    }
+}
+
+void applyJava17Compatibility(def project) {
+    def androidExt = project.extensions.findByName("android")
+    if (androidExt != null) {
+        androidExt.compileOptions {
+            sourceCompatibility JavaVersion.VERSION_17
+            targetCompatibility JavaVersion.VERSION_17
+        }
+        if (androidExt.hasProperty("kotlinOptions") && androidExt.kotlinOptions != null) {
+            androidExt.kotlinOptions {
+                jvmTarget = "17"
+            }
+        }
+    }
+
+    project.tasks.configureEach { task ->
+        if (task.hasProperty("options") && task.options?.respondsTo("getCompilerArgs")) {
+            task.options.compilerArgs << "-Xlint:-options"
+        }
+    }
+}
+
 tasks.register("clean", Delete) {
     delete rootProject.buildDir
 }

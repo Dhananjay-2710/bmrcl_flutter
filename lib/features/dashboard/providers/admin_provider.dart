@@ -2,6 +2,9 @@ import 'package:flutter/foundation.dart';
 import '../services/admin_service.dart';
 
 class AdminProvider extends ChangeNotifier {
+  final AdminService service;
+  AdminProvider(this.service);
+
   bool loading = false;
   String? error;
 
@@ -20,7 +23,7 @@ class AdminProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final data = await AdminService.fetchDashboardData(token);
+      final data = await service.fetchDashboardData(token);
 
       summary = (data['summary'] as Map?)?.cast<String, dynamic>();
       codes = (data['codes'] as List?)?.map((e) => e.toString()).toList() ?? [];

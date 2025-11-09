@@ -3,6 +3,9 @@ import '../models/user.dart';
 import '../services/user_service.dart';
 
 class UsersProvider extends ChangeNotifier {
+  final UserService service;
+  UsersProvider(this.service);
+
   List<UserModel> items = [];
   bool loading = false;
   String? error;
@@ -12,7 +15,7 @@ class UsersProvider extends ChangeNotifier {
     error = null;
     notifyListeners();
     try {
-      items = await UserService.fetchUsers(token);
+      items = await service.fetchUsers(token);
     } catch (e) {
       error = e.toString();
       items = [];

@@ -1,18 +1,31 @@
 import 'dart:convert';
-import 'package:http/http.dart' as http;
+import 'package:flutter/foundation.dart';
+
 import '../../../constants/api_constants.dart';
+import '../../../core/api_client.dart';
 import '../models/faq.dart';
 
 class FaqService {
-  static Future<List<Faq>> fetchFaqs(String token) async {
-    final url = Uri.parse('${ApiConstants.baseUrl}${ApiConstants.faqEndpoint}');
+  final ApiClient api;
+  FaqService(this.api);
 
-    final res = await http.get(
-      url,
-      headers: {
-        'Accept': 'application/json',
-        'Authorization': 'Bearer $token',
-      },
+  Exception _buildHttpError(int statusCode, String body) {
+    debugPrint('[FaqService] HTTP $statusCode: $body');
+    if (statusCode == 401) {
+      return Exception('Your session expired. Please login again.');
+    }
+    if (statusCode >= 500) {
+      return Exception('We\'re having trouble reaching the server. Please try again later.');
+    }
+    return Exception('We couldn\'t complete that request. Please try again.');
+  }
+
+  Future<List<Faq>> fetchFaqs(String token) async {
+    final res = await api.get(
+      ApiConstants.faqEndpoint,
+      token: token,
+      retryOn401: true,
+      retryOn5xx: true,
     );
 
     if (res.statusCode == 200) {
@@ -24,8 +37,7 @@ class FaqService {
       } else {
         throw Exception(map['message'] ?? "Invalid response");
       }
-    } else {
-      throw Exception('Failed to load FAQs: ${res.statusCode} → ${res.body}');
     }
+    throw _buildHttpError(res.statusCode, res.body);
   }
 }

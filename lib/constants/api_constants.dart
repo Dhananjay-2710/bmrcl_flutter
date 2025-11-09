@@ -1,7 +1,7 @@
 class ApiConstants {
   // Basic URL
   static const String baseUrl = 'https://demo.ctrmv.com/veriphy/public/api/v1';
-
+  static const String refreshEndpoint = '/refresh';
   // Login / Logout URL
   static const String loginEndpoint = '/login';
   static const String profileEndpoint = '/profile';
@@ -24,6 +24,7 @@ class ApiConstants {
 
   // Users URL
   static const String userListEndpoint = '/user/list';
+  static String userUpdateEndpoint(int id) => '/user/update/$id';
 
   // Devices URL
   static const String deviceListEndpoint = '/devices/list';
@@ -38,30 +39,40 @@ class ApiConstants {
   static const String myShiftEndpoint = '/assign_shift/attendance/list';
   static const String checkInEndpoint = '/assign_shift/attendance/checkin';
   static const String checkOutEndpoint = '/assign_shift/attendance/checkout';
-  static const String shiftsList       = 'shifts/list';
+  static const String shiftsList = 'shifts/list';
 
   // Station URL
-  static const String stationsList     = 'stations/list';
+  static const String stationsList = 'stations/list';
   static const String stationListEndpoint = '/stations/list';
 
   // Gate URL
-  static String stationsGates(int id)  => 'stations/getgate/$id';
+  static String stationsGates(int id) => 'stations/getgate/$id';
 
   // Shift URL
-  static const String shiftAssignList  = 'shift_assign/list';
+  static const String shiftAssignList = 'shift_assign/list';
   static const String shiftAssignStore = 'shift_assign/store';
   static const String shiftAssignBulkStore = 'shift_assign/store_bulk';
   static String shiftAssignUpdate(int id) => 'shift_assign/update/$id';
   static String shiftAssignDelete(int id) => 'shift_assign/delete/$id';
+  static String shiftAssignShow(int id) => 'shift_assign/show/$id';
 
   // Notifications
-  static const notificationsList = 'notifications/list';
-  static const notificationsUnread = 'notifications/unread';
-  static const notificationsRead = 'notifications/read/';
-  static const notificationsReadAll = 'notifications/read-all';
+  static const notificationsList = '/notifications/list';
+  static const notificationsUnread = '/notifications/unread';
+  static const notificationsRead = '/notifications/read';
+  static const notificationsReadAll = '/notifications/read-all';
 
   // Week Off
   static const String weekOffListEndpoint = '/week_off/list';
   static const String weekOffCreateEndpoint = '/week_off/store';
   static const String weekOffEndpoint = '/week_off';
+
+  // Leave
+  static const String leaveListEndpoint = '/leaves/list';
+  static const String myLeaveEndpoint = '/leaves/listleaveata';
+  static const String leaveStoreEndpoint = '/leaves/store';
+  static String leaveReviewEndpoint(int id) => '/leaves/review_leave/$id';
+  static String leaveApproveEndpoint(int id) => '/leaves/approved_leave/$id';
+  static String leaveUpdateEndpoint(int id) => '/leaves/update/$id';
+  static String leaveDeleteEndpoint(int id) => '/leaves/delete/$id';
 }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_html/flutter_html.dart';
 import 'package:provider/provider.dart';
+import '../../auth/providers/auth_provider.dart';
 import '../models/app_notification.dart';
 import '../providers/notifications_provider.dart';
 
@@ -19,8 +20,18 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   @override
   void initState() {
     super.initState();
-    final p = context.read<NotificationsProvider>();
-    if (p.isAuthenticated) p.refresh(); // avoid calling with no token
+    
+    // Use microtask to ensure context is ready
+    Future.microtask(() {
+      final notificationProv = context.read<NotificationsProvider>();
+      final authProv = context.read<AuthProvider>();
+      final token = authProv.token;
+      
+      if (token != null && token.isNotEmpty) {
+        notificationProv.updateToken(token);
+        notificationProv.refresh();
+      }
+    });
 
     _sc.addListener(() {
       final prov = context.read<NotificationsProvider>();
@@ -44,11 +55,13 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Notifications'),
+        backgroundColor: const Color(0xFFA7D222),
+        foregroundColor: Colors.white,
         actions: [
           TextButton.icon(
             onPressed: p.unreadCount == 0 ? null : () => p.markAllAsRead(),
-            icon: const Icon(Icons.mark_email_read_outlined),
-            label: const Text('Mark all'),
+            icon: const Icon(Icons.mark_email_read_outlined, color: Colors.white),
+            label: const Text('Mark all', style: TextStyle(color: Colors.white)),
           ),
         ],
       ),
@@ -62,7 +75,28 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
             }
             // empty state
             if (!p.isLoading && p.items.isEmpty) {
-              return const Center(child: Text('No notifications'));
+              return ListView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                children: [
+                  const SizedBox(height: 100),
+                  Icon(Icons.notifications_none, size: 64, color: Colors.grey.shade400),
+                  const SizedBox(height: 16),
+                  const Center(
+                    child: Text(
+                      'No notifications yet',
+                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Center(
+                    child: Text(
+                      'You\'ll see notifications here when you receive them',
+                      style: TextStyle(fontSize: 14, color: Colors.grey),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                ],
+              );
             }
 
             return ListView.separated(
@@ -78,11 +112,15 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                   );
                 }
                 final n = p.items[i];
+                
                 return ListTile(
                   leading: CircleAvatar(
                     backgroundImage: (n.data.fromUserImage?.isNotEmpty ?? false)
                         ? NetworkImage(n.data.fromUserImage!)
                         : const AssetImage('assets/images/profile.jpg') as ImageProvider,
+                    child: (n.data.fromUserImage?.isEmpty ?? true)
+                        ? Icon(Icons.person, size: 20, color: Colors.grey[600])
+                        : null,
                   ),
                   title: Row(
                     children: [

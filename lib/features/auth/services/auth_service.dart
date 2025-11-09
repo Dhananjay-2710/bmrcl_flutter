@@ -10,7 +10,12 @@ import 'auth_exceptions.dart';
 
 class AuthService {
   final ApiClient api;
+  String? _refreshToken;
   AuthService(this.api);
+
+  void updateRefreshToken(String? token) {
+    _refreshToken = token;
+  }
 
   Never _throwForStatus(int code, String body) {
     if (code == 401) {
@@ -38,7 +43,42 @@ class AuthService {
 
       if (res.statusCode == 200) {
         final data = jsonDecode(res.body);
-        if (data is Map<String, dynamic>) return data;
+        if (data is Map<String, dynamic>) {
+          _refreshToken = data['refresh_token']?.toString() ?? _refreshToken;
+          return data;
+        }
+        throw const FormatException('Unexpected JSON format.');
+      }
+      _throwForStatus(res.statusCode, res.body);
+    } on SocketException catch (e) {
+      throw AuthException(AuthErrorCode.network, 'Network/DNS error: ${e.message}');
+    } on TimeoutException {
+      throw AuthException(AuthErrorCode.network, 'Request timed out.');
+    }
+  }
+
+  Future<Map<String, dynamic>> performRefresh() async {
+    if (_refreshToken == null || _refreshToken!.isEmpty) {
+      throw AuthException(
+        AuthErrorCode.invalidCredentials,
+        'No refresh token available. Please login again.',
+      );
+    }
+    try {
+      final res = await api.post(
+        ApiConstants.refreshEndpoint,
+        body: jsonEncode({'refresh_token': _refreshToken}),
+      );
+
+      if (res.statusCode == 200) {
+        final data = jsonDecode(res.body);
+        if (data is Map<String, dynamic>) {
+          final newRefresh = data['refresh_token']?.toString();
+          if (newRefresh != null && newRefresh.isNotEmpty) {
+            _refreshToken = newRefresh;
+          }
+          return data;
+        }
         throw const FormatException('Unexpected JSON format.');
       }
       _throwForStatus(res.statusCode, res.body);

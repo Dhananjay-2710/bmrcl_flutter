@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
 
@@ -29,6 +30,56 @@ class AttendanceService {
     return MediaType('application', 'octet-stream');
   }
 
+  Exception _buildHttpError(http.Response res, String context) {
+    debugPrint('[$context] HTTP ${res.statusCode}: ${res.body}');
+    if (res.statusCode == 401) {
+      return Exception('Your session expired. Please login again.');
+    }
+    if (res.statusCode >= 500) {
+      return Exception('We\'re having trouble reaching the server. Please try again later.');
+    }
+    return Exception('We couldn\'t complete that request. Please try again.');
+  }
+
+  Future<http.Response> _sendAttendanceRequest({
+    required String endpoint,
+    required String token,
+    required Map<String, String> fields,
+    required String imageField,
+    required File imageFile,
+  }) async {
+    Future<http.Response> run(String authToken) async {
+      final req = http.MultipartRequest('POST', api.uri(endpoint))
+        ..headers['Authorization'] = 'Bearer $authToken'
+        ..headers['Accept'] = 'application/json'
+        ..fields.addAll(fields);
+
+      req.files.add(
+        await http.MultipartFile.fromPath(
+          imageField,
+          imageFile.path,
+          contentType: _guessMediaType(imageFile),
+        ),
+      );
+
+      final streamRes = await req.send();
+      return http.Response.fromStream(streamRes);
+    }
+
+    var response = await run(token);
+    if (response.statusCode != 401) {
+      return response;
+    }
+
+    final newToken = await api.refreshAccessToken();
+    if (newToken == null || newToken.isEmpty) {
+      return response;
+    }
+
+    response = await run(newToken);
+    return response;
+  }
+
   Future<bool> checkIn({
     required String token,
     required int assignmentId,
@@ -37,43 +88,34 @@ class AttendanceService {
     required bool force,
     required File imageFile,
   }) async {
-    final url = api.uri(ApiConstants.checkInEndpoint);
-
-    final req = http.MultipartRequest('POST', url)
-      ..headers['Authorization'] = 'Bearer $token'
-      ..headers['Accept'] = 'application/json'
-      ..fields['user_shift_assignment_id'] = assignmentId.toString()
-      ..fields['check_in_latitude'] = _fmt(lat)
-      ..fields['check_in_longitude'] = _fmt(lon)
-      ..fields['check_in_force_mark'] = force ? '1' : '0';
-
-    // DO NOT set Content-Type header yourself; MultipartRequest will add the boundary.
     if (!await imageFile.exists()) {
       // Surface a clear reason instead of silent 422
       throw Exception('check_in_image file not found at ${imageFile.path}');
     }
 
-    req.files.add(
-      await http.MultipartFile.fromPath(
-        'check_in_image',
-        imageFile.path,
-        contentType: _guessMediaType(imageFile),
-      ),
+    final resp = await _sendAttendanceRequest(
+      endpoint: ApiConstants.checkInEndpoint,
+      token: token,
+      fields: {
+        'user_shift_assignment_id': assignmentId.toString(),
+        'check_in_latitude': _fmt(lat),
+        'check_in_longitude': _fmt(lon),
+        'check_in_force_mark': force ? '1' : '0',
+      },
+      imageField: 'check_in_image',
+      imageFile: imageFile,
     );
 
-    final streamRes = await req.send();
-    final resp = await http.Response.fromStream(streamRes);
-
     if (resp.statusCode == 200 || resp.statusCode == 201) return true;
-    if (resp.statusCode == 404) return false;
+    if (resp.statusCode == 404) {
+      debugPrint('[AttendanceService] Check-in: assignment not found (404).');
+      return false;
+    }
     if (resp.statusCode == 422) {
       _logValidation(resp);
       return false;
     }
-    if (resp.statusCode >= 500) {
-      throw Exception('Server error ${resp.statusCode}: ${resp.body}');
-    }
-    return false;
+    throw _buildHttpError(resp, 'AttendanceService(checkIn)');
   }
 
   Future<bool> checkOut({
@@ -85,44 +127,34 @@ class AttendanceService {
     required bool force,
     required File imageFile,
   }) async {
-    final url = api.uri(ApiConstants.checkOutEndpoint);
-
-    final req = http.MultipartRequest('POST', url)
-      ..headers['Authorization'] = 'Bearer $token'
-      ..headers['Accept'] = 'application/json'
-      ..fields['attendance_id'] = attendanceId.toString()
-      ..fields['user_shift_assignment_id'] = assignmentId.toString()
-      ..fields['check_out_latitude'] = _fmt(lat)
-      ..fields['check_out_longitude'] = _fmt(lon)
-      ..fields['check_out_force_mark'] = force ? '1' : '0';
-
     if (!await imageFile.exists()) {
       throw Exception('check_out_image file not found at ${imageFile.path}');
     }
 
-    req.files.add(
-      await http.MultipartFile.fromPath(
-        'check_out_image',
-        imageFile.path,
-        contentType: _guessMediaType(imageFile),
-      ),
+    final resp = await _sendAttendanceRequest(
+      endpoint: ApiConstants.checkOutEndpoint,
+      token: token,
+      fields: {
+        'attendance_id': attendanceId.toString(),
+        'user_shift_assignment_id': assignmentId.toString(),
+        'check_out_latitude': _fmt(lat),
+        'check_out_longitude': _fmt(lon),
+        'check_out_force_mark': force ? '1' : '0',
+      },
+      imageField: 'check_out_image',
+      imageFile: imageFile,
     );
 
-    final streamRes = await req.send();
-    final resp = await http.Response.fromStream(streamRes);
-
-    // print('CHECKOUT -> ${resp.statusCode}\n${resp.body}');
-
     if (resp.statusCode == 200 || resp.statusCode == 201) return true;
-    if (resp.statusCode == 404) return false;
+    if (resp.statusCode == 404) {
+      debugPrint('[AttendanceService] Check-out: attendance not found (404).');
+      return false;
+    }
     if (resp.statusCode == 422) {
       _logValidation(resp);
       return false;
     }
-    if (resp.statusCode >= 500) {
-      throw Exception('Server error ${resp.statusCode}: ${resp.body}');
-    }
-    return false;
+    throw _buildHttpError(resp, 'AttendanceService(checkOut)');
   }
 
   void _logValidation(http.Response resp) {
