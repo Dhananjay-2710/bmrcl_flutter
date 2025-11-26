@@ -1,6 +1,6 @@
 class ApiConstants {
   // Basic URL
-  static const String baseUrl = 'https://demo.ctrmv.com/veriphy/public/api/v1';
+  static const String baseUrl = 'https://f8ops.veriphy.io/api/v1';
   static const String refreshEndpoint = '/refresh';
   // Login / Logout URL
   static const String loginEndpoint = '/login';

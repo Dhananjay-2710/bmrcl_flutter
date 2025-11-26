@@ -29,8 +29,8 @@ class ShiftInfo {
     endTime: j['end_time']?.toString() ?? '',
     breakStartTime: j['break_start_time']?.toString(),
     breakEndTime: j['break_end_time']?.toString(),
-    isNightShift: (j['is_night_shift'] as num?)?.toInt() ?? 0,
-    isActive: (j['is_active'] as num?)?.toInt() ?? 0,
+    isNightShift: j['is_night_shift'] == true || j['is_night_shift'] == 1 || j['is_night_shift'] == '1' ? 1 : 0,
+    isActive: j['is_active'] == true || j['is_active'] == 1 || j['is_active'] == '1' ? 1 : 0,
   );
 }
 

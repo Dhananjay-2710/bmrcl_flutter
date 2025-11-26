@@ -12,7 +12,7 @@ class ShiftLite {
     name: j['name'] as String,
     startTime: j['start_time'] as String?,
     endTime: j['end_time'] as String?,
-    isNightShift: j['is_night_shift'] as int?,
+    isNightShift: j['is_night_shift'] == true || j['is_night_shift'] == 1 || j['is_night_shift'] == '1' ? 1 : (j['is_night_shift'] == false || j['is_night_shift'] == 0 || j['is_night_shift'] == '0' ? 0 : (j['is_night_shift'] as num?)?.toInt()),
   );
 }
 
